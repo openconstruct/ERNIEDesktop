@@ -18,7 +18,7 @@ The project aims to provide a full featured AI environment with internet search 
 It consists of 3 elements:   1. llamacpp (not provided, goes in chat directory), the fastapi server, and the web application.
 
 
-To use internet search sign up for tavily https://auth.tavily.com/u/login/
+To use internet search sign up for [tavily](https://auth.tavily.com/u/login/identifier?state=hKFo2SBqUmRZcTktakw5alVYREZXVXhfbkFnZGhsd0gxOHpxdqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIF9Cb25sa2w4RVFja1p5RmVMVEVYOTItVW5QcEFkSmlXo2NpZNkgUlJJQXZ2WE5GeHBmVFdJb3pYMW1YcUxueVVtWVNUclE)
 
 
 Llamacpp-server provides inference, simply drop your preferred model into the chat folder along with the proper release from https://github.com/ggml-org/llama.cpp/releases/. 
