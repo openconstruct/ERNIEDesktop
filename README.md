@@ -13,17 +13,32 @@ This application is licensed under the MIT license
     License.
 - pdf.js (lib/pdf*.js) is licensed under Apache License 2.0.
 
+ *ERNIE Desktop*
+ ERNIE Desktop is a lightweight application to provide a nice GUI and toolset for running LLM models on SBCs or computers. It functions on ARM and AMD64 Linux currently, with plans to package it for windows.  ERNIE Desktop is designd for low cost, low power SBC systems, but also can run on a regular Linux PC.
 
-The project aims to provide a full featured AI environment with internet search and document interface similar to CHatGPT or Claude desktop.
 
-It consists of 3 elements:   1. llamacpp (not provided, goes in chat directory), the fastapi server, and the web application.
 
+*Getting started*
 
 To use internet search sign up for [tavily](https://auth.tavily.com/u/login/identifier?state=hKFo2SBqUmRZcTktakw5alVYREZXVXhfbkFnZGhsd0gxOHpxdqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIF9Cb25sa2w4RVFja1p5RmVMVEVYOTItVW5QcEFkSmlXo2NpZNkgUlJJQXZ2WE5GeHBmVFdJb3pYMW1YcUxueVVtWVNUclE)
 
+You will need to download or build llamacpp for your architecture. You can find prebuilt binaries for many systems [here](https://github.com/ggml-org/llama.cpp/releases/) . If you need to build from source visit llamacpp [here](https://github.com/ggml-org/llama.cpp) and follow instructions.  Put the contents of the zip ( or your build/bin directory if you built from source) into the chat directory.
 
-Llamacpp-server provides inference, simply drop your preferred model into the chat folder along with the proper release from https://github.com/ggml-org/llama.cpp/releases/. 
-The fastapi server provides search results to the LLM alongside sytem telemetry ( power, cpu, ram) . You will need to sign up for a free Tavily account, this will get you 1000 searches a month.
-The web application uses external libraries to remain fast and small. It provides pdf and text-based document attachments, markdown support for rich chat, streaming chat, and source code highlighting.
+Then you need to get a model in gguf format from someplace liek huggingface. Also lace it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.
 
-To start install requirements.txt located in /search in a python env. Edit example.env and input the model name (or download ERNIE), and put in your tavily key, and the location of your python env. Then rename .env  Then run ./ed.sh, this will start the servers and open the web application in your default browser.
+Next create a python env and install requirements.txt in ERNIEDesktop/search
+
+Then edit example.env and add your settings such as model name and path, llama-server commandline, ports, and tavily key.
+
+Finally run ed.sh, mark it as executable if you get a permissions error. This should launch both servers and open the web application.
+
+*About*
+
+ERNIE  Desktop is comprised of 3 main parts. 
+- llamcpp Provides inference via API
+- fastAPI server Provides internet search, and device analytics
+- web application Provides the UI, control center, and document interface
+
+  This software has been tested thouroughly on an AMD laptop and a Radxa Orion o6 ARM development board.
+
+  
