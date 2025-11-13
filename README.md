@@ -13,7 +13,8 @@ This application is licensed under the MIT license
     License.
 - pdf.js (lib/pdf*.js) is licensed under Apache License 2.0.
 
- *ERNIE Desktop*
+ *ERNIE Desktop* 
+ 
  ERNIE Desktop is a lightweight application to provide a nice GUI and toolset for running LLM models on SBCs or computers. It functions on ARM and AMD64 Linux currently, with plans to package it for windows.  ERNIE Desktop is designd for low cost, low power SBC systems, but also can run on a regular Linux PC.
 
 
