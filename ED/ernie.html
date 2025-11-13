@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>ERNIE Desktop</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <script src="lib/marked.min.js"></script>
+  <link rel="stylesheet" href="lib/highlight-github.min.css" id="highlight-theme">
+  <script src="lib/highlight.min.js"></script>
+  <script src="lib/pdf.min.js"></script>
+  <script src="runtime-config.js"></script>
+  <style>
+    html,body{height:100vh;overflow:hidden}
+    .app-container{height:100vh}
+    #perfBar { font-size: 14px; }
+    .main-content{height:100vh;overflow:hidden}
+    .chat-container{flex-grow:1;overflow-y:auto;min-height:0}
+    .chat-input-container{flex-shrink:0}
+    #chatInput{resize:none}
+    #sidebar{transition:transform .3s ease-in-out,width .3s ease-in-out}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    .status-pill{padding:2px 10px;border-radius:999px;border:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg);min-width:60px;display:inline-flex;justify-content:center;align-items:center}
+    .status-pill.status-idle{background:var(--bs-tertiary-bg);color:var(--bs-body-color);border-color:var(--bs-border-color)}
+    .status-pill.status-ok{background:#198754;border-color:#198754;color:#fff}
+    .status-pill.status-warn{background:#ffc107;border-color:#ffc107;color:#000}
+    .status-pill.status-alert{background:#dc3545;border-color:#dc3545;color:#fff}
+    .role-chip{font-size:12px;line-height:1}
+    .message-body pre{position:relative;padding-top:40px}
+    .code-actions{position:absolute;top:8px;right:8px;display:flex;gap:8px}
+    .code-action-button{padding:4px 8px;font-size:12px;background-color:var(--bs-secondary-bg);border:1px solid var(--bs-border-color);border-radius:4px;cursor:pointer;opacity:.8;transition:all .2s}
+    .code-action-button:hover{opacity:1;background-color:var(--bs-tertiary-bg)}
+    .search-results{background:var(--bs-tertiary-bg)}
+    .search-result-item{border-bottom:1px dashed var(--bs-border-color);padding:4px 0}
+    .search-result-item:last-child{border-bottom:none}
+    .status-indicator{width:10px;height:10px}
+    .status-indicator.online{animation:pulse 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+  </style>
+</head>
+<body>
+<div class="app-container d-flex">
+  <!-- mobile toggler -->
+  <button class="btn btn-light d-md-none m-2 position-fixed" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" style="z-index:1045;top:0;left:0">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+    </svg>
+  </button>
+
+  <!-- sidebar -->
+  <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body-tertiary offcanvas-md offcanvas-start" tabindex="-1" id="sidebar" style="width:280px">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">ERNIE Desktop — Menu</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close"></button>
+    </div>
+
+    <div class="d-grid gap-2 mb-3" id="sidebar-header">
+      <button class="btn btn-primary" id="newChatBtn">New chat</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary flex-fill" id="importChatBtn">Import</button>
+        <button class="btn btn-outline-primary flex-fill" id="exportChatBtn">Export</button>
+      </div>
+      <input type="file" id="importFileInput" accept=".json" class="d-none">
+    </div>
+
+    <div class="list-group list-group-flush border-bottom scrollarea flex-grow-1" id="sessionsList"></div>
+
+    <div class="mt-3">
+      <div class="mb-3 small">
+        <div class="fw-semibold text-uppercase text-muted mb-1">Endpoints</div>
+        <div class="text-body-secondary">Model: <span id="modelEndpointLabel" class="mono"></span></div>
+        <div class="text-body-secondary">Search: <span id="searchEndpointLabel" class="mono"></span></div>
+      </div>
+      <div class="d-grid gap-2">
+        <button class="btn btn-outline-secondary" id="settingsBtn" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button>
+        <button class="btn btn-outline-secondary" id="themeSwitcher">🌙</button>
+        <button class="btn btn-outline-primary" id="saveChatBtn">Save Chat</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <main class="main-content flex-grow-1 d-flex flex-column">
+    <div class="d-flex gap-3 p-2 px-3 bg-body-tertiary border-bottom align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <svg class="status-indicator" viewBox="0 0 10 10" id="modelServerStatus">
+          <circle cx="5" cy="5" r="5" fill="#6c757d"/>
+        </svg>
+        <small class="text-muted">Model Server</small>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <svg class="status-indicator" viewBox="0 0 10 10" id="searchServerStatus">
+          <circle cx="5" cy="5" r="5" fill="#6c757d"/>
+        </svg>
+        <small class="text-muted">API Server</small>
+      </div>
+      <div class="ms-auto d-flex align-items-center gap-4 flex-wrap justify-content-end">
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-muted">Power</small>
+          <span class="mono status-pill" id="powerStatus">--</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-muted">RAM</small>
+          <span class="mono status-pill" id="ramStatus">--</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-muted">CPU</small>
+          <span class="mono status-pill" id="cpuStatus">--</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <small class="text-muted">Temp</small>
+          <span class="mono status-pill" id="tempStatus">--</span>
+        </div>
+      </div>
+    </div>
+    <div class="chat-container p-3" id="chatContainer">
+      <div class="empty-state text-center h-100 d-flex flex-column justify-content-center align-items-center">
+        <div>
+          <h2>ERNIE Desktop</h2>
+          <p class="lead text-body-secondary">Start a conversation with your local ERNIE</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-container p-3 bg-body-tertiary border-top">
+      <div class="input-area">
+        <!-- attachments -->
+        <div id="stagedFilesArea" class="d-flex flex-wrap gap-2 mb-2" style="display:none;"></div>
+
+        <!-- input row -->
+        <div class="input-group">
+          <button class="btn btn-outline-primary" id="searchBtn" title="Use web search with the current text">Search</button>
+          <textarea class="form-control" id="chatInput" placeholder="Message ERNIE..." rows="1"></textarea>
+          <label for="fileInput" class="btn btn-outline-secondary" title="Attach files">📎</label>
+          <input type="file" id="fileInput" multiple class="d-none">
+          <button class="btn btn-primary" id="sendButton">Send</button>
+        </div>
+
+        <!-- status + perf -->
+        <div class="status-bar text-center text-body-secondary small mt-2" id="statusBar"></div>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-1 mt-1">
+          <div class="text-center small mono" id="perfBar">⚡ TTFT: - • ⏱️ Gen: - • 📝 chars: - (-/s) • 🔢 tokens: - (-/s)</div>
+          <div class="text-center small mono" id="tpsBar">Session TPS: --</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- settings modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="temperature" class="form-label">Temperature</label>
+          <input type="number" class="form-control" id="temperature" min="0" max="2" step="0.1" value="0.7">
+          <small class="form-text text-muted">Controls randomness.</small>
+        </div>
+        <div class="mb-3">
+          <label for="nPredict" class="form-label">Max Tokens</label>
+          <input type="number" class="form-control" id="nPredict" min="1" step="1" value="1024">
+          <small class="form-text text-muted">Max tokens to generate.</small>
+        </div>
+        <div class="mb-3">
+          <label for="topP" class="form-label">Top P</label>
+          <input type="number" class="form-control" id="topP" min="0" max="1" step="0.01" value="0.95">
+          <small class="form-text text-muted">Nucleus sampling.</small>
+        </div>
+        <div class="mb-3">
+          <label for="topK" class="form-label">Top K</label>
+          <input type="number" class="form-control" id="topK" min="1" step="1" value="40">
+          <small class="form-text text-muted">Top-k sampling.</small>
+        </div>
+        <div class="mb-3">
+          <label for="stopSequences" class="form-label">Stop Sequences</label>
+          <input type="text" class="form-control" id="stopSequences" value="USER:, \nUSER:, <|user|>">
+          <small class="form-text text-muted">Comma-separated strings.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="lib/bootstrap.bundle.min.js"></script>
+<script>
+/* =========================
+   ELEMENTS & CONSTANTS
+========================= */
+const SESSION_INDEX_KEY='llamaChatIndex';
+const SESSION_DATA_PREFIX='llamaChatSession_';
+const MAX_TEXT_FILE_EMBED_SIZE=200*1024;
+const runtimeConfig=window.ERNIE_RUNTIME_CONFIG||{};
+const HEALTHCHECK_INTERVAL_MS=Number(runtimeConfig.webPollTimerMs)||8000;
+const POWER_POLL_INTERVAL_MS=Number(runtimeConfig.powerPollMs)||10000;
+const MODEL_SERVER_URL=(runtimeConfig.modelServerUrl||'http://127.0.0.1:8080').replace(/\/+$/,'');
+const SEARCH_API_URL=(runtimeConfig.searchApiUrl||'http://127.0.0.1:8000').replace(/\/+$/,'');
+const elements={
+  chatInput:document.getElementById('chatInput'),
+  sendButton:document.getElementById('sendButton'),
+  searchBtn:document.getElementById('searchBtn'),
+  statusBar:document.getElementById('statusBar'),
+  perfBar:document.getElementById('perfBar'),
+  chatContainer:document.getElementById('chatContainer'),
+  themeSwitcher:document.getElementById('themeSwitcher'),
+  temperature:document.getElementById('temperature'),
+  nPredict:document.getElementById('nPredict'),
+  topP:document.getElementById('topP'),
+  topK:document.getElementById('topK'),
+  stopSequences:document.getElementById('stopSequences'),
+  sessionsList:document.getElementById('sessionsList'),
+  newChatBtn:document.getElementById('newChatBtn'),
+  fileInput:document.getElementById('fileInput'),
+  stagedFilesArea:document.getElementById('stagedFilesArea'),
+  highlightTheme:document.getElementById('highlight-theme'),
+  saveChatBtn:document.getElementById('saveChatBtn'),
+  sidebar:document.getElementById('sidebar'),
+  importChatBtn:document.getElementById('importChatBtn'),
+  exportChatBtn:document.getElementById('exportChatBtn'),
+  importFileInput:document.getElementById('importFileInput'),
+  modelServerStatus:document.getElementById('modelServerStatus'),
+  searchServerStatus:document.getElementById('searchServerStatus'),
+  modelEndpointLabel:document.getElementById('modelEndpointLabel'),
+  searchEndpointLabel:document.getElementById('searchEndpointLabel'),
+  powerStatus:document.getElementById('powerStatus'),
+  ramStatus:document.getElementById('ramStatus'),
+  cpuStatus:document.getElementById('cpuStatus'),
+  tempStatus:document.getElementById('tempStatus'),
+  tpsBar:document.getElementById('tpsBar')
+};
+
+let chatHistory=[];
+let messageCounter=0;
+let currentAbortController=null;
+let stagedFiles=[];
+let sidebarInstance=null;
+let healthCheckInterval=null;
+let powerTelemetryInterval=null;
+let pendingSearchContexts=[];
+let tStart=0,tFirst=0,tEnd=0,charCount=0;
+let sessionTokensDecoded=0;
+let sessionGenerationTimeMs=0;
+const CHARS_PER_TOKEN=4;
+const STATUS_BAR_BASE_CLASS='status-bar text-center text-body-secondary small mt-2';
+const PERF_BAR_DEFAULT_TEXT='⚡ TTFT: - • ⏱️ Gen: - • 📝 chars: - (-/s) • 🔢 tokens: - (-/s)';
+const STATUS_PILL_BASE_CLASS='mono status-pill';
+const STATUS_SEVERITIES=new Set(['idle','ok','warn','alert']);
+
+/* =========================
+   THEME
+========================= */
+function initializeTheme(){
+  const saved=localStorage.getItem('theme')||'light';
+  setTheme(saved);
+}
+function setTheme(theme){
+  document.documentElement.setAttribute('data-bs-theme',theme);
+  elements.themeSwitcher.textContent=theme==='dark'?'☀️':'🌙';
+  const light='lib/highlight-github.min.css';
+  const dark='lib/highlight-github-dark.min.css';
+  document.getElementById('highlight-theme').href = (theme==='dark'?dark:light);
+  localStorage.setItem('theme',theme);
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-bs-theme')||'light';
+  setTheme(cur==='light'?'dark':'light');
+}
+
+/* =========================
+   INIT
+========================= */
+function initialize(){
+  sidebarInstance=new bootstrap.Offcanvas(elements.sidebar);
+  setupEventListeners();
+  initializeTheme();
+  updateEndpointLabels();
+  configureMarked();
+  startNewSession();
+  updateSendButtonState();
+  startHealthChecks();
+  startPowerTelemetry();
+}
+function configureMarked(){
+  marked.setOptions({
+    gfm:true,
+    breaks:true,
+    langPrefix:'language-'
+  });
+}
+function updateEndpointLabels(){
+  if(elements.modelEndpointLabel) elements.modelEndpointLabel.textContent=MODEL_SERVER_URL;
+  if(elements.searchEndpointLabel) elements.searchEndpointLabel.textContent=SEARCH_API_URL;
+}
+
+/* =========================
+   EVENTS
+========================= */
+function setupEventListeners(){
+  elements.sendButton.addEventListener('click',handleSend);
+  elements.searchBtn.addEventListener('click',handleWebSearch);
+  elements.themeSwitcher.addEventListener('click',toggleTheme);
+  elements.newChatBtn.addEventListener('click',()=>{ if(currentAbortController) currentAbortController.abort(); startNewSession(); });
+  elements.saveChatBtn.addEventListener('click',handleSaveSession);
+  elements.importChatBtn.addEventListener('click',()=>elements.importFileInput.click());
+  elements.exportChatBtn.addEventListener('click',handleExportChat);
+  elements.importFileInput.addEventListener('change',handleImportChat);
+
+  elements.chatInput.addEventListener('input',()=>{
+    updateSendButtonState();
+    autoResizeTextarea(elements.chatInput);
+  });
+  elements.chatInput.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); if(!elements.sendButton.disabled) handleSend(); }
+  });
+
+  elements.fileInput.addEventListener('change',handleFileSelection);
+  elements.stagedFilesArea.addEventListener('click',handleRemoveStagedFile);
+
+  elements.sessionsList.addEventListener('click',e=>{
+    const li=e.target.closest('.list-group-item');
+    const del=e.target.closest('.delete-btn');
+    if(del && li){ e.stopPropagation(); handleDeleteSession(li.dataset.sessionId); }
+    else if(li){ handleLoadSession(li.dataset.sessionId); }
+  });
+}
+function autoResizeTextarea(t){ t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,200)+'px'; }
+
+/* =========================
+   STATUS & PERF
+========================= */
+function showLoading(isLoading,msg=""){
+  if(isLoading){
+    elements.statusBar.innerHTML=`<div class="spinner-border spinner-border-sm me-2" role="status"></div><span>${escapeHtml(msg)}</span>`;
+  }else{
+    if(!elements.statusBar.classList.contains('text-bg-danger')) elements.statusBar.innerHTML='';
+  }
+}
+function showStatus(message,type="info"){
+  showLoading(false);
+  elements.statusBar.className=`status-bar text-center small mt-2 p-1 rounded-pill text-bg-${type}`;
+  elements.statusBar.textContent=message;
+  if(type!=='danger'&&type!=='warning'){
+    setTimeout(()=>{
+      if(elements.statusBar.textContent===message){
+        elements.statusBar.textContent='';
+        elements.statusBar.className=STATUS_BAR_BASE_CLASS;
+      }
+    },3000);
+  }
+}
+function setStatusPill(element,text,title,severity='idle'){
+  if(!element) return;
+  const sev=STATUS_SEVERITIES.has(severity)?severity:'idle';
+  element.className=`${STATUS_PILL_BASE_CLASS} status-${sev}`;
+  element.textContent=text;
+  element.title=title||'';
+}
+function resetStatusArea(){
+  if(elements.statusBar){
+    elements.statusBar.className=STATUS_BAR_BASE_CLASS;
+    elements.statusBar.textContent='';
+    elements.statusBar.innerHTML='';
+  }
+  tStart=0;
+  tFirst=0;
+  tEnd=0;
+  charCount=0;
+  if(elements.perfBar){
+    elements.perfBar.textContent=PERF_BAR_DEFAULT_TEXT;
+  }
+  setStatusPill(elements.powerStatus,'--','', 'idle');
+  setStatusPill(elements.ramStatus,'--','', 'idle');
+  setStatusPill(elements.cpuStatus,'--','', 'idle');
+  setStatusPill(elements.tempStatus,'--','', 'idle');
+}
+function updatePerfBar(isStreaming=false,finished=false){
+  const ttft=tFirst?((tFirst-tStart)/1000).toFixed(2):"-";
+  const now=performance.now();
+  const total=(finished?(tEnd-tStart):(now-tStart))/1000;
+  const genMs=tFirst?(finished?(tEnd-tFirst):(now-tFirst)):0;
+  const cps=charCount&&genMs>0?(charCount/(genMs/1000)).toFixed(1):"-";
+  const approxTokens=charCount?Math.max(1,Math.round(charCount/CHARS_PER_TOKEN)):0;
+  const tps=approxTokens&&genMs>0?(approxTokens/(genMs/1000)).toFixed(1):"-";
+  elements.perfBar.textContent=`⚡ TTFT: ${ttft}s • ⏱️ Gen: ${total.toFixed(2)}s • 📝 chars: ${charCount} (${cps}/s) • 🔢 tokens: ${approxTokens} (${tps}/s)`;
+}
+
+/* =========================
+   FILES (attachments)
+========================= */
+async function handleFileSelection(e){
+  const files=e.target.files; if(!files) return;
+  showLoading(true,"Processing files...");
+  const add=Array.from(files).filter(f=>!stagedFiles.some(sf=>sf.name===f.name));
+  if(add.length!==files.length) showStatus("Duplicate filenames were ignored.","warning");
+  if(add.length===0){ showLoading(false); return; }
+  
+  let done=0;
+  
+  for (const file of add) {
+    const fd={file,name:file.name,type:file.type,content:null,error:null};
+    stagedFiles.push(fd);
+    
+    if(file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        let textContent = '';
+        
+        for(let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const text = await page.getTextContent();
+          const pageText = text.items.map(item => item.str).join(' ');
+          textContent += `\n--- Page ${i} ---\n${pageText}\n`;
+        }
+        
+        fd.content = textContent.trim();
+        done++;
+        if(done===add.length) finishFileProcessing();
+      } catch(err) {
+        fd.error = `PDF Error: ${err.message}`;
+        done++;
+        if(done===add.length) finishFileProcessing();
+      }
+    }
+    else if(file.type.startsWith('text/')||/\.(txt|md|py|js|ts|html|css|json|xml|csv|log|cpp|c|hpp|h|java|go|rs)$/i.test(file.name)) {
+      const r=new FileReader();
+      r.onload=ev=>{ fd.content=ev.target.result; done++; if(done===add.length) finishFileProcessing(); };
+      r.onerror=ev=>{ fd.error=`Error reading file: ${ev.target.error?.message||'Unknown'}`; done++; if(done===add.length) finishFileProcessing(); };
+      r.readAsText(file);
+    }
+    else {
+      const r=new FileReader();
+      r.onload=ev=>{ fd.content=ev.target.result; done++; if(done===add.length) finishFileProcessing(); };
+      r.onerror=ev=>{ fd.error=`Error reading file: ${ev.target.error?.message||'Unknown'}`; done++; if(done===add.length) finishFileProcessing(); };
+      r.readAsDataURL(file);
+    }
+  }
+  
+  renderStagedFiles(); e.target.value=null;
+}
+function finishFileProcessing(){ renderStagedFiles(); showLoading(false); updateSendButtonState(); elements.chatInput.focus(); }
+function renderStagedFiles(){
+  elements.stagedFilesArea.innerHTML='';
+  if(stagedFiles.length===0){ elements.stagedFilesArea.style.display='none'; updateSendButtonState(); return; }
+  elements.stagedFilesArea.style.display='flex';
+  stagedFiles.forEach((fd,idx)=>{
+    const item=document.createElement('div');
+    item.className=`badge d-flex align-items-center ${fd.error?'text-bg-danger':'text-bg-secondary'}`;
+    item.title=fd.name+(fd.error?` (Error: ${fd.error})`:'');
+    item.innerHTML=`<span class="me-2">${fd.name}</span><button type="button" class="btn-close btn-close-white" aria-label="Remove file" data-index="${idx}"></button>`;
+    elements.stagedFilesArea.appendChild(item);
+  });
+  updateSendButtonState();
+}
+function handleRemoveStagedFile(e){
+  if(e.target.matches('[data-index]')){
+    const idx=parseInt(e.target.dataset.index,10);
+    stagedFiles.splice(idx,1);
+    renderStagedFiles();
+  }
+}
+function clearStagedFiles(){ stagedFiles=[]; renderStagedFiles(); elements.fileInput.value=null; }
+
+/* =========================
+   CHAT RENDER
+========================= */
+function applySyntaxHighlighting(scope){
+  const root=scope||document;
+  root.querySelectorAll('pre code').forEach(codeBlock=>{
+    const langClass=Array.from(codeBlock.classList).find(cls=>cls.startsWith('language-')||cls.startsWith('lang-'));
+    try{
+      if(langClass){
+        const lang=langClass.replace(/^(language|lang)-/,'');
+        if(!hljs.getLanguage(lang)){
+          codeBlock.classList.remove(langClass);
+          const auto=hljs.highlightAuto(codeBlock.textContent||'');
+          codeBlock.innerHTML=auto.value||codeBlock.textContent||'';
+          codeBlock.classList.add('hljs');
+          if(auto.language) codeBlock.classList.add(`language-${auto.language}`);
+          return;
+        }
+        hljs.highlightElement(codeBlock);
+      }else{
+        const auto=hljs.highlightAuto(codeBlock.textContent||'');
+        codeBlock.innerHTML=auto.value||codeBlock.textContent||'';
+        codeBlock.classList.add('hljs');
+        if(auto.language) codeBlock.classList.add(`language-${auto.language}`);
+      }
+    }catch(err){
+      if(!codeBlock.classList.contains('hljs')) codeBlock.classList.add('hljs');
+    }
+  });
+}
+function createMessageElement(message){
+  const wrap=document.createElement('div');
+  wrap.className=`chat-message ${message.role}-message d-flex gap-3 mb-3`;
+  wrap.dataset.messageId=message.id;
+
+  const chipText=message.role==='user'?'User':(message.role==='model'?'ERNIE':'Search');
+  const chipClass=message.role==='user'?'bg-secondary':(message.role==='model'?'bg-primary':'bg-info');
+  const roleChip=`<div class="role-chip text-white ${chipClass} px-3 py-1 rounded-pill fw-semibold" style="flex-shrink:0;align-self:flex-start;">${chipText}</div>`;
+  const bodyDiv=`<div class="message-body p-3 border rounded-3 w-100"></div>`;
+
+  wrap.innerHTML=roleChip+bodyDiv;
+  const bodyEl=wrap.querySelector('.message-body');
+
+  if(message.role==='model'){
+    bodyEl.innerHTML=marked.parse(message.content||'');
+    applySyntaxHighlighting(bodyEl);
+    requestAnimationFrame(()=>addCodeActionsToBubble(bodyEl));
+  }else if(message.role==='user'){
+    bodyEl.style.whiteSpace='pre-wrap';
+    bodyEl.textContent=message.content;
+  }else if(message.role==='search'){
+    bodyEl.appendChild(createSearchResultElement(message));
+  }
+  return wrap;
+}
+function createSearchResultElement(searchMsg){
+  const wrapper=document.createElement('div');
+  wrapper.className='search-results p-3 rounded-3';
+  const q=escapeHtml(searchMsg.query||'');
+  wrapper.innerHTML=`<h6 class="mb-3">🔍 Search: ${q}</h6>`;
+  (searchMsg.results||[]).forEach((r,i)=>{
+    const title=r.name||r.title||r.url||`Result ${i+1}`;
+    const url=r.url||'';
+    const snip=r.snippet||r.content||'';
+    const safeUrl=escapeHtml(url);
+    const urlBlock=url
+      ? `<a href="${safeUrl}" class="text-muted text-decoration-none" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`
+      : '<span class="text-muted">No URL provided</span>';
+    const item=document.createElement('div');
+    item.className='search-result-item';
+    item.innerHTML=`
+      <div class="fw-bold">[${i+1}] ${escapeHtml(title)}</div>
+      <div class="small mb-1">${urlBlock}</div>
+      <div class="small">${escapeHtml(snip)}</div>`;
+    wrapper.appendChild(item);
+  });
+  return wrapper;
+}
+function renderChatHistory(){
+  if(chatHistory.length===0){
+    elements.chatContainer.innerHTML=`<div class="empty-state text-center h-100 d-flex flex-column justify-content-center align-items-center">
+      <div><h2>ERNIE Desktop</h2><p class="lead text-body-secondary">Local, Smart, Secure, & Private</p></div></div>`;
+  }else{
+    elements.chatContainer.innerHTML='';
+    chatHistory.forEach(m=>elements.chatContainer.appendChild(createMessageElement(m)));
+    scrollToBottom();
+  }
+}
+function updateModelBubbleContent(messageId,newContent,isStreaming=false){
+  const body=document.querySelector(`.model-message[data-message-id="${messageId}"] .message-body`);
+  if(!body) return;
+  body.innerHTML=marked.parse(newContent|| (isStreaming? "" : "[Empty Response]"));
+  applySyntaxHighlighting(body);
+  addCodeActionsToBubble(body);
+  if(isStreaming) scrollToBottom();
+}
+function updateTpsBar(){
+  if(!elements.tpsBar) return;
+  if(sessionTokensDecoded<=0 || sessionGenerationTimeMs<=0){
+    elements.tpsBar.textContent='Session TPS: --';
+    return;
+  }
+  const tps=sessionTokensDecoded/(sessionGenerationTimeMs/1000);
+  elements.tpsBar.textContent=`Session TPS: ${tps.toFixed(2)} (${sessionTokensDecoded} tok)`;
+}
+function addCodeActionsToBubble(container){
+  container.querySelectorAll('pre').forEach(pre=>{
+    if(pre.querySelector('.code-actions')) return;
+    const code=pre.querySelector('code'); if(!code) return;
+    const actions=document.createElement('div');
+    actions.className='code-actions';
+    actions.innerHTML=`<button class="code-action-button copy-code-button">Copy</button>
+                       <button class="code-action-button download-code-button">Download</button>`;
+    pre.prepend(actions);
+  });
+}
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('copy-code-button')){
+    const code=e.target.closest('pre')?.querySelector('code')?.textContent||'';
+    navigator.clipboard.writeText(code).then(()=>{ e.target.textContent='Copied!'; setTimeout(()=>e.target.textContent='Copy',1500); });
+  }
+  if(e.target.classList.contains('download-code-button')){
+    const code=e.target.closest('pre')?.querySelector('code')?.textContent||'';
+    const blob=new Blob([code],{type:'text/plain'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url;a.download='code.txt'; a.click(); URL.revokeObjectURL(url);
+  }
+});
+function scrollToBottom(){ elements.chatContainer.scrollTop=elements.chatContainer.scrollHeight; }
+function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* =========================
+   POWER TELEMETRY
+========================= */
+function startPowerTelemetry(){
+  fetchPowerTelemetry();
+  if(powerTelemetryInterval) clearInterval(powerTelemetryInterval);
+  powerTelemetryInterval=setInterval(fetchPowerTelemetry,POWER_POLL_INTERVAL_MS);
+}
+async function fetchPowerTelemetry(){
+  if(!elements.powerStatus) return;
+  try{
+    const resp=await fetch(`${SEARCH_API_URL}/telemetry/power`);
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    updatePowerStatusDisplay(data);
+    updateRamStatusDisplay(data);
+    updateCpuStatusDisplay(data);
+    updateTemperatureDisplay(data);
+  }catch(err){
+    showPowerError(err.message||'Power telemetry failed');
+    showRamError(err.message||'RAM telemetry failed');
+    showCpuError(err.message||'CPU telemetry failed');
+    showTemperatureError(err.message||'Temperature telemetry failed');
+  }
+}
+function updatePowerStatusDisplay(data){
+  if(!elements.powerStatus) return;
+  if(!data || typeof data.watts!=='number'){
+    const reason=data?.detail||'Power telemetry unavailable';
+    showPowerError(reason);
+    return;
+  }
+  const watts=Math.max(0,data.watts).toFixed(1);
+  const tags=[];
+  if(typeof data.percent==='number'){ tags.push(`${Math.round(data.percent)}%`); }
+  if(typeof data.plugged==='boolean'){ tags.push(data.plugged?'plugged':'battery'); }
+  if(data.status==='estimated'){ tags.push('est'); }
+  const suffix=tags.length?` (${tags.join(', ')})`:'';
+  const util=typeof data.power_utilization==='number'?data.power_utilization:null;
+  let severity='ok';
+  if(util!==null){
+    if(util>=0.85) severity='alert';
+    else if(util>=0.6) severity='warn';
+  }else{
+    const wattsNumeric=parseFloat(watts);
+    if(wattsNumeric>=40) severity='alert';
+    else if(wattsNumeric>=25) severity='warn';
+  }
+  const detail=data.detail?`${data.detail} — `:'';
+  setStatusPill(
+    elements.powerStatus,
+    `${data.status==='estimated'?'~':''}${watts} W${suffix}`,
+    `${detail}Updated ${new Date().toLocaleTimeString()}`,
+    severity
+  );
+}
+function showPowerError(reason){
+  if(!elements.powerStatus) return;
+  setStatusPill(elements.powerStatus,'n/a',reason||'Power telemetry unavailable','alert');
+}
+function updateRamStatusDisplay(data){
+  if(!elements.ramStatus) return;
+  const used=data?.ram_used_bytes;
+  const total=data?.ram_total_bytes;
+  if(typeof used!=='number'||typeof total!=='number'||total<=0){
+    const reason=data?.detail||'RAM telemetry unavailable';
+    showRamError(reason);
+    return;
+  }
+  const percent=typeof data.ram_percent==='number'?data.ram_percent:((used/total)*100);
+  const percentText=isFinite(percent)?percent.toFixed(1):'--';
+  let severity='ok';
+  if(percent>=85) severity='alert';
+  else if(percent>=70) severity='warn';
+  setStatusPill(
+    elements.ramStatus,
+    `${formatBytes(used)} / ${formatBytes(total)} (${percentText}%)`,
+    `Updated ${new Date().toLocaleTimeString()}`,
+    severity
+  );
+}
+function showRamError(reason){
+  if(!elements.ramStatus) return;
+  setStatusPill(elements.ramStatus,'n/a',reason||'RAM telemetry unavailable','alert');
+}
+function updateCpuStatusDisplay(data){
+  if(!elements.cpuStatus) return;
+  const usage=data?.cpu_usage_percent;
+  if(typeof usage!=='number'){
+    const reason=data?.detail||'CPU telemetry unavailable';
+    showCpuError(reason);
+    return;
+  }
+  let severity='ok';
+  if(usage>=85) severity='alert';
+  else if(usage>=60) severity='warn';
+  setStatusPill(
+    elements.cpuStatus,
+    `${usage.toFixed(1)}%`,
+    `Updated ${new Date().toLocaleTimeString()}`,
+    severity
+  );
+}
+function showCpuError(reason){
+  if(!elements.cpuStatus) return;
+  setStatusPill(elements.cpuStatus,'n/a',reason||'CPU telemetry unavailable','alert');
+}
+function updateTemperatureDisplay(data){
+  if(!elements.tempStatus) return;
+  const temp=data?.cpu_temp_c;
+  if(typeof temp!=='number'){
+    const reason=data?.detail||'Temperature telemetry unavailable';
+    showTemperatureError(reason);
+    return;
+  }
+  const label=data?.temp_source?` (${data.temp_source})`:'';
+  let severity='ok';
+  if(temp>=75) severity='alert';
+  else if(temp>=60) severity='warn';
+  setStatusPill(
+    elements.tempStatus,
+    `${temp.toFixed(1)} °C${label}`,
+    `Updated ${new Date().toLocaleTimeString()}`,
+    severity
+  );
+}
+function showTemperatureError(reason){
+  if(!elements.tempStatus) return;
+  setStatusPill(elements.tempStatus,'n/a',reason||'Temperature telemetry unavailable','alert');
+}
+function formatBytes(bytes){
+  if(!isFinite(bytes)) return '--';
+  const units=['B','KB','MB','GB','TB'];
+  let value=Math.max(0,bytes);
+  let unitIndex=0;
+  while(value>=1024 && unitIndex<units.length-1){
+    value/=1024;
+    unitIndex++;
+  }
+  return `${value.toFixed(unitIndex===0?0:1)} ${units[unitIndex]}`;
+}
+
+/* =========================
+   HEALTH CHECKS
+========================= */
+function startHealthChecks(){
+  checkServerHealth();
+  healthCheckInterval=setInterval(checkServerHealth,HEALTHCHECK_INTERVAL_MS);
+}
+
+async function checkServerHealth(){
+  checkModelServer();
+  checkSearchServer();
+}
+
+async function checkModelServer(){
+  try{
+    const url=MODEL_SERVER_URL;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),3000);
+    
+    const resp=await fetch(`${url}/health`,{signal:controller.signal}).catch(()=>null);
+    clearTimeout(timeout);
+    
+    const circle=elements.modelServerStatus.querySelector('circle');
+    if(resp && resp.ok){
+      circle.setAttribute('fill','#28a745');
+      elements.modelServerStatus.classList.add('online');
+      elements.modelServerStatus.setAttribute('title','Model Server: Online');
+    }else{
+      circle.setAttribute('fill','#dc3545');
+      elements.modelServerStatus.classList.remove('online');
+      elements.modelServerStatus.setAttribute('title','Model Server: Offline');
+    }
+  }catch(e){
+    const circle=elements.modelServerStatus.querySelector('circle');
+    circle.setAttribute('fill','#dc3545');
+    elements.modelServerStatus.classList.remove('online');
+    elements.modelServerStatus.setAttribute('title','Model Server: Offline');
+  }
+}
+
+async function checkSearchServer(){
+  try{
+    const url=SEARCH_API_URL;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),3000);
+    
+    const resp=await fetch(`${url}/health`,{signal:controller.signal}).catch(()=>null);
+    clearTimeout(timeout);
+    
+    const circle=elements.searchServerStatus.querySelector('circle');
+    if(resp && resp.ok){
+      circle.setAttribute('fill','#28a745');
+      elements.searchServerStatus.classList.add('online');
+      elements.searchServerStatus.setAttribute('title',' API Server: Online');
+    }else{
+      circle.setAttribute('fill','#dc3545');
+      elements.searchServerStatus.classList.remove('online');
+      elements.searchServerStatus.setAttribute('title','API Server: Offline');
+    }
+  }catch(e){
+    const circle=elements.searchServerStatus.querySelector('circle');
+    circle.setAttribute('fill','#dc3545');
+    elements.searchServerStatus.classList.remove('online');
+    elements.searchServerStatus.setAttribute('title','API Server: Offline');
+  }
+}
+
+/* =========================
+   IMPORT/EXPORT
+========================= */
+function handleExportChat(){
+  if(chatHistory.length===0){ showStatus("No chat to export.","warning"); return; }
+  
+  const exportData={
+    version:"1.0",
+    exported:new Date().toISOString(),
+    chatHistory:chatHistory
+  };
+  
+  const json=JSON.stringify(exportData,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`ernie-chat-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showStatus("Chat exported successfully.","success");
+}
+
+function handleImportChat(e){
+  const file=e.target.files[0];
+  if(!file){ return; }
+  
+  const reader=new FileReader();
+  reader.onload=(ev)=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.chatHistory || !Array.isArray(data.chatHistory)){
+        throw new Error("Invalid chat format");
+      }
+      chatHistory=data.chatHistory;
+      messageCounter=chatHistory.length;
+      renderChatHistory();
+      showStatus("Chat imported successfully.","success");
+    }catch(err){
+      showStatus(`Import failed: ${err.message}`,"danger");
+    }
+  };
+  reader.onerror=()=>showStatus("Failed to read file.","danger");
+  reader.readAsText(file);
+  e.target.value=null;
+}
+
+/* =========================
+   SESSIONS
+========================= */
+function getSessionIndex(){ try{const idx=JSON.parse(localStorage.getItem(SESSION_INDEX_KEY)); return Array.isArray(idx)?idx:[];}catch{return[];} }
+function saveSessionIndex(index){ localStorage.setItem(SESSION_INDEX_KEY,JSON.stringify(index)); }
+function populateSessions(){
+  const sessions=getSessionIndex();
+  elements.sessionsList.innerHTML='';
+  sessions.forEach(s=>{
+    const item=document.createElement('a'); item.href='#';
+    item.className='list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+    item.dataset.sessionId=s.id; item.textContent=s.name;
+    item.innerHTML+=`<button class="btn-close delete-btn" title="Delete session"></button>`;
+    elements.sessionsList.appendChild(item);
+  });
+}
+function handleSaveSession(){
+  const sessions=getSessionIndex();
+  const name=prompt("Enter a name for this session:","Chat "+new Date().toLocaleString());
+  if(!name?.trim()) return;
+  const id=Date.now().toString();
+  sessions.push({id,name:name.trim()});
+  localStorage.setItem(SESSION_DATA_PREFIX+id,JSON.stringify(chatHistory));
+  saveSessionIndex(sessions); populateSessions();
+  showStatus(`Session "${name.trim()}" saved.`,"success");
+}
+function handleLoadSession(id){
+  const json=localStorage.getItem(SESSION_DATA_PREFIX+id);
+  chatHistory=JSON.parse(json||"[]"); renderChatHistory(); showStatus("Session loaded.","info");
+}
+function handleDeleteSession(id){
+  const sessions=getSessionIndex();
+  const s=sessions.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`Delete session "${s.name}"?`)) return;
+  localStorage.removeItem(SESSION_DATA_PREFIX+id);
+  saveSessionIndex(sessions.filter(x=>x.id!==id));
+  populateSessions(); showStatus("Session deleted.","info");
+}
+function startNewSession(){
+  if(currentAbortController) currentAbortController.abort();
+  chatHistory=[]; messageCounter=0; pendingSearchContexts=[];
+  sessionTokensDecoded=0; sessionGenerationTimeMs=0; updateTpsBar();
+  resetStatusArea();
+  clearStagedFiles(); renderChatHistory();
+  populateSessions(); elements.chatInput.focus();
+}
+
+/* =========================
+   PROMPT BUILDING
+========================= */
+function formatChatHistoryForLlama(history){
+  return history.map(msg=>{
+    if(msg.role==='user')  return `USER: ${msg.llmContent || msg.content}`;
+    if(msg.role==='model') return `ASSISTANT: ${msg.content}`;
+    return '';
+  }).join('\n')+'\nASSISTANT:';
+}
+
+async function streamAssistantResponse(modelMsg,{successMessage="Response complete."}={}){
+  const temperature=parseFloat(elements.temperature.value);
+  const nPredict=parseInt(elements.nPredict.value,10);
+  const topP=parseFloat(elements.topP.value);
+  const topK=parseInt(elements.topK.value,10);
+  const stop=elements.stopSequences.value.split(',').map(x=>x.trim()).filter(Boolean);
+
+  const prompt=formatChatHistoryForLlama(chatHistory.slice(0,-1));
+
+  console.log('=== PROMPT BEING SENT ===');
+  console.log(prompt.substring(0,500)+'...');
+  console.log('=== END PROMPT ===');
+
+  const requestBody={
+    prompt,
+    stream:true,
+    temperature,
+    top_p:topP,
+    top_k:topK,
+    n_predict:nPredict === -1 ? -1 : Math.max(1,nPredict),
+    stop
+  };
+
+  currentAbortController=new AbortController();
+  tStart=performance.now(); tFirst=0; tEnd=0; charCount=0; updatePerfBar();
+
+  let responseOk=false;
+  try{
+    const resp=await fetch(`${MODEL_SERVER_URL}/completion`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(requestBody),
+      signal:currentAbortController.signal
+    });
+    responseOk=resp.ok;
+    if(!resp.ok || !resp.body) throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+
+    showLoading(true,'Receiving response...');
+    const reader=resp.body.getReader();
+    const decoder=new TextDecoder();
+    while(true){
+      const {value,done}=await reader.read();
+      if(done) break;
+      const chunk=decoder.decode(value,{stream:true});
+      const lines=chunk.split('\n\n').filter(Boolean);
+      for(const line of lines){
+        if(line.startsWith('data: ')){
+          const data=JSON.parse(line.substring(6));
+          if(data.content){
+            if(!tFirst && data.content.length) tFirst=performance.now();
+            charCount+=data.content.length;
+            modelMsg.content+=data.content;
+            updatePerfBar(true);
+          }
+          if(data.stop) break;
+        }
+      }
+      updateModelBubbleContent(modelMsg.id,modelMsg.content,true);
+    }
+    tEnd=performance.now();
+    updatePerfBar(false,true);
+    const currentGenTime=Math.max(0,tEnd-(tFirst||tStart));
+    sessionGenerationTimeMs+=currentGenTime;
+    const approxTokens=Math.max(1,Math.round(charCount/CHARS_PER_TOKEN));
+    sessionTokensDecoded+=approxTokens;
+    updateTpsBar();
+    showStatus(successMessage,"success");
+  }catch(err){
+    if(err.name==='AbortError'){
+      showStatus("Request cancelled.","info");
+    }else{
+      const msg=!responseOk?"Connection Error: Could not connect to server.":err.message;
+      showStatus("Error: "+msg,"danger");
+    }
+  }finally{
+    updateModelBubbleContent(modelMsg.id,modelMsg.content,false);
+    currentAbortController=null;
+    showLoading(false);
+    elements.chatInput.focus();
+  }
+}
+
+/* =========================
+   SEND TO LLM
+========================= */
+function updateSendButtonState(){
+  const canSend=(elements.chatInput.value.trim().length>0||stagedFiles.length>0);
+  elements.sendButton.disabled=!canSend;
+}
+async function handleSend(){
+  const text=elements.chatInput.value.trim();
+  if(!text && stagedFiles.length===0){ showStatus("Message cannot be empty.","warning"); return; }
+
+  let contextBlock="";
+  let userDisplayText=text||"";
+
+  if(stagedFiles.length>0){
+    contextBlock+="Attached Files:\n";
+    stagedFiles.forEach(fd=>{
+      contextBlock+=`[File: ${fd.name} (${fd.type||'unknown'})]\n`;
+      if(((fd.type||'').startsWith('text/') || fd.type==='application/pdf') && fd.content && fd.content.length<MAX_TEXT_FILE_EMBED_SIZE){
+        contextBlock+=`Content:\n---\n${fd.content}\n---\n`;
+      }else if((fd.type||'').startsWith('text/') || fd.type==='application/pdf'){
+        contextBlock+=`(File content too large to embed)\n`;
+      }else{
+        contextBlock+=`(Binary/image file not embedded)\n`;
+      }
+    });
+    contextBlock+='\n';
+    
+    // Clean display: show file count in chat
+    const fileNames=stagedFiles.map(f=>f.name).join(', ');
+    userDisplayText=`📎 ${stagedFiles.length} file${stagedFiles.length>1?'s':''} attached: ${fileNames}\n\n${text}`;
+  }
+
+  if(pendingSearchContexts.length>0){
+    contextBlock+="Web Search Results:\n";
+    pendingSearchContexts.forEach((ctx,idx)=>{
+      contextBlock+=`Search ${idx+1}:\n${ctx}\n\n`;
+    });
+    pendingSearchContexts=[];
+  }
+
+  const userContent=(contextBlock?contextBlock:"") + (text||"(no text)");
+  const userMsg={role:'user',content:userDisplayText,llmContent:userContent,id:`msg-${messageCounter++}`};
+  chatHistory.push(userMsg); renderChatHistory();
+
+  elements.chatInput.value=''; autoResizeTextarea(elements.chatInput);
+  clearStagedFiles(); updateSendButtonState();
+
+  const modelMsg={role:'model',content:'',id:`msg-${messageCounter++}`};
+  chatHistory.push(modelMsg); renderChatHistory();
+
+  await streamAssistantResponse(modelMsg,{successMessage:"Response complete."});
+}
+
+/* =========================
+   WEB SEARCH
+========================= */
+async function handleWebSearch(){
+  const query=elements.chatInput.value.trim();
+  if(!query){ showStatus("Enter a search query first.","warning"); return; }
+  const base=SEARCH_API_URL;
+
+  showStatus("Searching the web…","info");
+  try{
+    const r=await fetch(`${base}/search/web`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ query, count:5, search_depth:"basic", include_answer:false })
+    });
+    if(!r.ok) throw new Error(`Search failed: ${r.status}`);
+    const data=await r.json();
+    const results=Array.isArray(data.results)?data.results:[];
+    const contextText=results.map((x,i)=>{
+      const title=x.name||x.title||x.url||`Result ${i+1}`;
+      const url=x.url||'';
+      const snip=x.snippet||x.content||'';
+      return `[${i+1}] ${title}\nURL: ${url}\n${snip}`;
+    }).join('\n\n');
+
+    const searchMsg={ role:'search', query, results, context_text:contextText, id:`msg-${messageCounter++}` };
+    chatHistory.push(searchMsg); renderChatHistory();
+    if(contextText) pendingSearchContexts.push(contextText);
+
+    elements.chatInput.value='';
+    autoResizeTextarea(elements.chatInput);
+    updateSendButtonState();
+
+    showStatus("Search complete — press Send to include results as context.","success");
+  }catch(e){
+    showStatus(`Search error: ${e.message}`,'danger');
+  }
+}
+
+/* =========================
+   INIT
+========================= */
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+}
+
+initialize();
+</script>
+</body>
+</html>
