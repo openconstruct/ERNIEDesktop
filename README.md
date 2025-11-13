@@ -5,12 +5,13 @@ ________________________________________________________________
 This project built initially for the Baidu ERNIE hackathon, Oct 24-Nov23 2025.
 This application is licensed under the MIT license
 
--Included Linraries
- Bootstrap 5.3.3 (lib/bootstrap*.{css,js}) is released under the MIT License.
- Marked (lib/marked.min.js) is also MIT licensed.
- Highlight.js (lib/highlight*.js/css) is distributed under the BSD 3-Clause
+-Included Libraries
+
+- Bootstrap 5.3.3 (lib/bootstrap*.{css,js}) is released under the MIT License.
+- Marked (lib/marked.min.js) is also MIT licensed.
+- Highlight.js (lib/highlight*.js/css) is distributed under the BSD 3-Clause
     License.
- pdf.js (lib/pdf*.js) is licensed under Apache License 2.0.
+- pdf.js (lib/pdf*.js) is licensed under Apache License 2.0.
 
 
 The project aims to provide a full featured AI environment with internet search and document interface similar to CHatGPT or Claude desktop.
