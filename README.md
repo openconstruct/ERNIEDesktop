@@ -1,9 +1,11 @@
 # ERNIE Desktop
-Like chatgpt or claude desktop, but for local models
+Local AI desktop for ERNIE / GGUF models on Linux & SBCs (Radxa, Pi, etc.)
 ________________________________________________________________
 
 This project built initially for the Baidu ERNIE hackathon, Oct 24-Nov23 2025.
 This application is licensed under the MIT license
+
+Designed as a free and open source alternative to apps like ChatGPT and Claude Desktop.
 
 -Included Libraries
 
