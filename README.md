@@ -2,6 +2,8 @@
 Local AI desktop for ERNIE / GGUF models on Linux & SBCs (Radxa, Pi, etc.)
 ________________________________________________________________
 
+<img width="1280" height="720" alt="Screenshot from 2025-11-13 07-34-11" src="https://github.com/user-attachments/assets/b457cb46-5b39-4423-937e-503199a9db29" />
+
 This project built initially for the Baidu ERNIE hackathon, Oct 24-Nov23 2025.
 This application is licensed under the MIT license
 
