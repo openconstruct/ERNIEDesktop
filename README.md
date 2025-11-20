@@ -30,7 +30,7 @@ First you will need to create a python venv and install requirements.txt in the 
     
 To use internet search sign up for [tavily](https://auth.tavily.com/u/login/identifier?state=hKFo2SBqUmRZcTktakw5alVYREZXVXhfbkFnZGhsd0gxOHpxdqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIF9Cb25sa2w4RVFja1p5RmVMVEVYOTItVW5QcEFkSmlXo2NpZNkgUlJJQXZ2WE5GeHBmVFdJb3pYMW1YcUxueVVtWVNUclE)
 
-You will need to download or build llamacpp for your architecture. You can find prebuilt binaries for many systems [here](https://github.com/ggml-org/llama.cpp/releases/) . If you need to build from source visit llamacpp [here](https://github.com/ggml-org/llama.cpp) and follow instructions.  Put the contents of the zip ( or your build/bin directory if you built from source) into the chat directory.
+You will need to download or build llamacpp for your architecture. You can find prebuilt binaries for many systems [here](https://github.com/ggml-org/llama.cpp/releases/) . If you need to build from source visit llamacpp [here](https://github.com/ggml-org/llama.cpp) and follow instructions.  Put the contents of the zip ( or your build/bin directory if you built from source) into chat inside of ED directory
 
 Then you need to get a model in gguf format from someplace like huggingface. Also place it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.
 
