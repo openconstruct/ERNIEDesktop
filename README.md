@@ -25,15 +25,18 @@ Designed as a free and open source alternative to apps like ChatGPT and Claude D
 
 *Getting started*
 
+First you will need to create a python venv and install requirements.txt in the search directory.
+    pip install -r requirements.txt
+    
 To use internet search sign up for [tavily](https://auth.tavily.com/u/login/identifier?state=hKFo2SBqUmRZcTktakw5alVYREZXVXhfbkFnZGhsd0gxOHpxdqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIF9Cb25sa2w4RVFja1p5RmVMVEVYOTItVW5QcEFkSmlXo2NpZNkgUlJJQXZ2WE5GeHBmVFdJb3pYMW1YcUxueVVtWVNUclE)
 
 You will need to download or build llamacpp for your architecture. You can find prebuilt binaries for many systems [here](https://github.com/ggml-org/llama.cpp/releases/) . If you need to build from source visit llamacpp [here](https://github.com/ggml-org/llama.cpp) and follow instructions.  Put the contents of the zip ( or your build/bin directory if you built from source) into the chat directory.
 
-Then you need to get a model in gguf format from someplace liek huggingface. Also lace it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.
+Then you need to get a model in gguf format from someplace like huggingface. Also place it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.
 
-Next create a python env and install requirements.txt in ERNIEDesktop/search
 
-Then edit example.env and add your settings such as model name and path, llama-server commandline, ports, and tavily key.
+
+Then edit example.env and add your settings such as model name and path, llama-server commandline, ports, and tavily key.  Rename it from example.env to just .env.
 
 Finally run ed.sh, mark it as executable if you get a permissions error. This should launch both servers and open the web application.
 
