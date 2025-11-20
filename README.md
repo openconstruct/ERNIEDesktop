@@ -32,7 +32,7 @@ To use internet search sign up for [tavily](https://auth.tavily.com/u/login/iden
 
 You will need to download or build llamacpp for your architecture. You can find prebuilt binaries for many systems [here](https://github.com/ggml-org/llama.cpp/releases/) . If you need to build from source visit llamacpp [here](https://github.com/ggml-org/llama.cpp) and follow instructions.  Put the contents of the zip ( or your build/bin directory if you built from source) into chat inside of ED directory
 
-Then you need to get a model in gguf format from someplace like huggingface. Also place it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.
+Then you need to get a model in gguf format from someplace like huggingface. Also place it into the chat directory, or wherever you would like, you will need to imput model path in the .env file later.   This has been tested extensively with ERNIE 4.5 21B, but should work with any model. You can download ERNIE [HERE](https://huggingface.co/unsloth/ERNIE-4.5-21B-A3B-PT-GGUF/tree/main)  testing was performed with ERNIE-4.5-21B-A3B-PT-Q2_K_L.gguf
 
 
 
