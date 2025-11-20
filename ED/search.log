@@ -1,0 +1,33 @@
+INFO:     Started server process [36875]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+============================================================
+IRIS Search API Server
+============================================================
+Starting server on http://127.0.0.1:8000
+Endpoints:
+  POST /search/web - Perform web search
+  GET  /health - Health check
+============================================================
+INFO:     127.0.0.1:39882 - "GET /health HTTP/1.1" 200 OK
+/home/jerr/ED/search/search.py:276: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "timestamp": datetime.utcnow().isoformat() + "Z",
+INFO:     127.0.0.1:39882 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39884 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39884 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39884 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60532 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60532 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52040 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52052 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44048 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44048 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44062 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44062 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44062 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33134 - "GET /telemetry/power HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [36875]

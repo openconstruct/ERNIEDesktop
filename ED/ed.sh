@@ -90,8 +90,6 @@ nohup ./llama-server -m "$MODEL_ARG" \
   --threads 7 \
   --ctx-size 2048 \
   --batch-size 4 \
-  --ubatch-size 4 \
-  --no-mmap \
   --mlock > "$BASE_DIR/llama.log" 2>&1 &
 LLAMA_PID=$!
 cd "$BASE_DIR"
