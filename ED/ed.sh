@@ -41,8 +41,10 @@ fi
 
 # --- defaults & normalization ---
 LLM_HOST="${LLM_HOST:-127.0.0.1}"
+LLM_MODEL_DIR="${LLM_MODEL_DIR:-./models}"
 LLM_MODEL_PATH="${LLM_MODEL_PATH:-e4.gguf}"
 LLM_PORT="${LLM_PORT:-8080}"
+LLAMA_ARGS="${LLAMA_ARGS:---threads 7 --ctx-size 2048 --batch-size 4 --mlock}"
 API_HOST="${API_HOST:-127.0.0.1}"
 API_MODEL="${API_MODEL:-tavily-web}"
 API_PORT="${API_PORT:-8000}"
@@ -66,6 +68,19 @@ export TAVILY_API_KEY
 export API_MODEL
 export API_PORT
 export API_HOST
+export CHAT_DIR
+export LLM_HOST
+export LLM_PORT
+export LLAMA_ARGS
+export LLAMA_PID_FILE="$BASE_DIR/llama.pid"
+export LLAMA_LOG_FILE="$BASE_DIR/llama.log"
+
+# Resolve model directory for search.py
+MODEL_DIR_FOR_EXPORT="$LLM_MODEL_DIR"
+if [[ "$MODEL_DIR_FOR_EXPORT" != /* ]]; then
+  MODEL_DIR_FOR_EXPORT="$BASE_DIR/$MODEL_DIR_FOR_EXPORT"
+fi
+export LLM_MODEL_DIR="$MODEL_DIR_FOR_EXPORT"
 
 # runtime config for UI (poll timer etc.)
 cat > "$BASE_DIR/runtime-config.js" <<EOF
@@ -77,22 +92,42 @@ window.ERNIE_RUNTIME_CONFIG = {
 };
 EOF
 
-# --- start llama server ---
-echo "[*] Starting llama-server..."
-cd "$CHAT_DIR"
-MODEL_ARG="$LLM_MODEL_PATH"
-if [[ "$MODEL_ARG" != /* ]]; then
-  MODEL_ARG="$CHAT_DIR/$MODEL_ARG"
+# --- start llama server (if model is specified) ---
+if [ -z "$LLM_MODEL_PATH" ]; then
+  echo "[*] No model specified in LLM_MODEL_PATH. Skipping llama-server startup."
+  echo "[*] You can select and load a model from the UI once it opens."
+  LLAMA_PID=""
+else
+  echo "[*] Starting llama-server with model: $LLM_MODEL_PATH"
+  cd "$CHAT_DIR"
+
+  # Resolve model directory path
+  MODEL_DIR="$LLM_MODEL_DIR"
+  if [[ "$MODEL_DIR" != /* ]]; then
+    MODEL_DIR="$BASE_DIR/$MODEL_DIR"
+  fi
+
+  # Combine directory and model filename
+  MODEL_ARG="$MODEL_DIR/$LLM_MODEL_PATH"
+
+  if [ ! -f "$MODEL_ARG" ]; then
+    echo "[!] Warning: Model file not found at $MODEL_ARG"
+    echo "[*] Skipping llama-server startup. You can select a model from the UI."
+    LLAMA_PID=""
+    cd "$BASE_DIR"
+  else
+    nohup ./llama-server -m "$MODEL_ARG" \
+      --host "$LLM_HOST" \
+      --port "$LLM_PORT" \
+      $LLAMA_ARGS > "$BASE_DIR/llama.log" 2>&1 &
+    LLAMA_PID=$!
+
+    # Write PID and model to file for FastAPI management
+    echo "$LLAMA_PID" > "$LLAMA_PID_FILE"
+    echo "$MODEL_ARG" >> "$LLAMA_PID_FILE"
+    cd "$BASE_DIR"
+  fi
 fi
-nohup ./llama-server -m "$MODEL_ARG" \
-  --host "$LLM_HOST" \
-  --port "$LLM_PORT" \
-  --threads 7 \
-  --ctx-size 2048 \
-  --batch-size 4 \
-  --mlock > "$BASE_DIR/llama.log" 2>&1 &
-LLAMA_PID=$!
-cd "$BASE_DIR"
 
 select_search_python() {
   if [ -n "${VIRTUAL_ENV:-}" ]; then
@@ -164,11 +199,27 @@ cd "$BASE_DIR"
 # --- open UI ---
 open_ui
 
-echo "llama-server PID: $LLAMA_PID"
+if [ -n "$LLAMA_PID" ]; then
+  echo "llama-server PID: $LLAMA_PID"
+else
+  echo "llama-server: Not started (no model loaded)"
+fi
 echo "search server PID: $SEARCH_PID"
 echo "Logs: $BASE_DIR/llama.log, $BASE_DIR/search.log"
 echo "Press Ctrl+C to stop everything."
 
-trap "echo; echo 'Stopping...'; kill $LLAMA_PID $SEARCH_PID 2>/dev/null || true; exit 0" INT
+# Trap to stop processes on exit
+stop_services() {
+  echo
+  echo 'Stopping services...'
+  if [ -n "$LLAMA_PID" ]; then
+    kill "$LLAMA_PID" 2>/dev/null || true
+  fi
+  kill "$SEARCH_PID" 2>/dev/null || true
+  rm -f "$LLAMA_PID_FILE"
+  exit 0
+}
+
+trap stop_services INT
 
 while true; do sleep 1; done

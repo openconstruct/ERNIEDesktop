@@ -1,66 +1,46 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>ERNIE Desktop</title>
-  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
   <script src="lib/marked.min.js"></script>
   <link rel="stylesheet" href="lib/highlight-github.min.css" id="highlight-theme">
   <script src="lib/highlight.min.js"></script>
   <script src="lib/pdf.min.js"></script>
+  <script src="lib/papaparse.min.js"></script>
+  <script src="lib/mammoth.min.js"></script>
   <script src="runtime-config.js"></script>
   <style>
-    html,body{height:100vh;overflow:hidden}
-    .app-container{height:100vh}
-    #perfBar { font-size: 14px; }
-    .main-content{height:100vh;overflow:hidden}
-    .chat-container{flex-grow:1;overflow-y:auto;min-height:0}
-    .chat-input-container{flex-shrink:0}
+    /* Additional custom styles - most styles moved to style.css */
     #chatInput{resize:none}
-    #sidebar{transition:transform .3s ease-in-out,width .3s ease-in-out}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
-    .status-pill{padding:2px 10px;border-radius:999px;border:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg);min-width:60px;display:inline-flex;justify-content:center;align-items:center}
-    .status-pill.status-idle{background:var(--bs-tertiary-bg);color:var(--bs-body-color);border-color:var(--bs-border-color)}
-    .status-pill.status-ok{background:#198754;border-color:#198754;color:#fff}
-    .status-pill.status-warn{background:#ffc107;border-color:#ffc107;color:#000}
-    .status-pill.status-alert{background:#dc3545;border-color:#dc3545;color:#fff}
-    .role-chip{font-size:12px;line-height:1}
-    .message-body pre{position:relative;padding-top:40px}
-    .code-actions{position:absolute;top:8px;right:8px;display:flex;gap:8px}
-    .code-action-button{padding:4px 8px;font-size:12px;background-color:var(--bs-secondary-bg);border:1px solid var(--bs-border-color);border-radius:4px;cursor:pointer;opacity:.8;transition:all .2s}
-    .code-action-button:hover{opacity:1;background-color:var(--bs-tertiary-bg)}
-    .search-results{background:var(--bs-tertiary-bg)}
-    .search-result-item{border-bottom:1px dashed var(--bs-border-color);padding:4px 0}
-    .search-result-item:last-child{border-bottom:none}
-    .status-indicator{width:10px;height:10px}
-    .status-indicator.online{animation:pulse 2s ease-in-out infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
   </style>
 </head>
 <body>
-<div class="app-container d-flex">
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-container">
   <!-- mobile toggler -->
-  <button class="btn btn-light d-md-none m-2 position-fixed" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" style="z-index:1045;top:0;left:0">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16">
+  <button class="btn btn-light mobile-toggle" type="button" id="sidebarToggle">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
       <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
     </svg>
   </button>
 
   <!-- sidebar -->
-  <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body-tertiary offcanvas-md offcanvas-start" tabindex="-1" id="sidebar" style="width:280px">
+  <aside class="sidebar" id="sidebar">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title">ERNIE Desktop — Menu</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close"></button>
+      <button type="button" class="btn-close" id="sidebarClose" aria-label="Close"></button>
     </div>
 
-    <div class="d-grid gap-2 mb-3" id="sidebar-header">
+    <div class="sidebar-header" id="sidebar-header">
       <button class="btn btn-primary" id="newChatBtn">New chat</button>
-      <div class="d-flex gap-2">
+      <div class="flex gap-2">
         <button class="btn btn-outline-primary flex-fill" id="importChatBtn">Import</button>
         <button class="btn btn-outline-primary flex-fill" id="exportChatBtn">Export</button>
       </div>
-      <input type="file" id="importFileInput" accept=".json" class="d-none">
+      <input type="file" id="importFileInput" accept=".json">
     </div>
 
     <div class="list-group list-group-flush border-bottom scrollarea flex-grow-1" id="sessionsList"></div>
@@ -68,11 +48,11 @@
     <div class="mt-3">
       <div class="mb-3 small">
         <div class="fw-semibold text-uppercase text-muted mb-1">Endpoints</div>
-        <div class="text-body-secondary">Model: <span id="modelEndpointLabel" class="mono"></span></div>
-        <div class="text-body-secondary">Search: <span id="searchEndpointLabel" class="mono"></span></div>
+        <div class="text-secondary">Model: <span id="modelEndpointLabel" class="mono"></span></div>
+        <div class="text-secondary">Search: <span id="searchEndpointLabel" class="mono"></span></div>
       </div>
-      <div class="d-grid gap-2">
-        <button class="btn btn-outline-secondary" id="settingsBtn" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button>
+      <div class="sidebar-header">
+        <button class="btn btn-outline-secondary" id="settingsBtn">Settings</button>
         <button class="btn btn-outline-secondary" id="themeSwitcher">🌙</button>
         <button class="btn btn-outline-primary" id="saveChatBtn">Save Chat</button>
       </div>
@@ -80,65 +60,78 @@
   </aside>
 
   <!-- main -->
-  <main class="main-content flex-grow-1 d-flex flex-column">
-    <div class="d-flex gap-3 p-2 px-3 bg-body-tertiary border-bottom align-items-center">
-      <div class="d-flex align-items-center gap-2">
+  <main class="main-content">
+    <div class="top-bar">
+      <div class="flex align-items-center gap-2">
         <svg class="status-indicator" viewBox="0 0 10 10" id="modelServerStatus">
           <circle cx="5" cy="5" r="5" fill="#6c757d"/>
         </svg>
         <small class="text-muted">Model Server</small>
       </div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="flex align-items-center gap-2">
         <svg class="status-indicator" viewBox="0 0 10 10" id="searchServerStatus">
           <circle cx="5" cy="5" r="5" fill="#6c757d"/>
         </svg>
         <small class="text-muted">API Server</small>
       </div>
-      <div class="ms-auto d-flex align-items-center gap-4 flex-wrap justify-content-end">
-        <div class="d-flex align-items-center gap-2">
+      <div class="top-bar-end">
+        <div class="flex align-items-center gap-2">
           <small class="text-muted">Power</small>
           <span class="mono status-pill" id="powerStatus">--</span>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="flex align-items-center gap-2">
           <small class="text-muted">RAM</small>
           <span class="mono status-pill" id="ramStatus">--</span>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="flex align-items-center gap-2">
           <small class="text-muted">CPU</small>
           <span class="mono status-pill" id="cpuStatus">--</span>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="flex align-items-center gap-2">
           <small class="text-muted">Temp</small>
           <span class="mono status-pill" id="tempStatus">--</span>
         </div>
+        <div class="flex align-items-center gap-2">
+          <small class="text-muted">VRAM</small>
+          <span class="mono status-pill" id="vramStatus">--</span>
+        </div>
       </div>
     </div>
-    <div class="chat-container p-3" id="chatContainer">
-      <div class="empty-state text-center h-100 d-flex flex-column justify-content-center align-items-center">
+    <div class="chat-container" id="chatContainer">
+      <div class="empty-state">
         <div>
           <h2>ERNIE Desktop</h2>
-          <p class="lead text-body-secondary">Start a conversation with your local ERNIE</p>
+          <p class="lead text-secondary">Start a conversation with your local ERNIE</p>
         </div>
       </div>
     </div>
 
-    <div class="chat-input-container p-3 bg-body-tertiary border-top">
+    <!-- Document Tray -->
+    <div id="documentTrayContainer" style="display:none;">
+      <div class="p-2 flex align-items-center justify-content-between border-bottom">
+        <small class="text-muted fw-semibold">📚 Loaded Documents (<span id="docCount">0</span>)</small>
+        <button class="btn btn-sm btn-outline-danger" id="clearAllDocsBtn" title="Remove all documents">Clear All</button>
+      </div>
+      <div id="documentTray"></div>
+    </div>
+
+    <div class="chat-input-container">
       <div class="input-area">
         <!-- attachments -->
-        <div id="stagedFilesArea" class="d-flex flex-wrap gap-2 mb-2" style="display:none;"></div>
+        <div id="stagedFilesArea"></div>
 
         <!-- input row -->
         <div class="input-group">
           <button class="btn btn-outline-primary" id="searchBtn" title="Use web search with the current text">Search</button>
           <textarea class="form-control" id="chatInput" placeholder="Message ERNIE..." rows="1"></textarea>
           <label for="fileInput" class="btn btn-outline-secondary" title="Attach files">📎</label>
-          <input type="file" id="fileInput" multiple class="d-none">
+          <input type="file" id="fileInput" multiple>
           <button class="btn btn-primary" id="sendButton">Send</button>
         </div>
 
         <!-- status + perf -->
-        <div class="status-bar text-center text-body-secondary small mt-2" id="statusBar"></div>
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-1 mt-1">
+        <div class="status-bar" id="statusBar"></div>
+        <div class="flex flex-column justify-content-between align-items-center gap-1 mt-1" style="flex-direction: row;">
           <div class="text-center small mono" id="perfBar">⚡ TTFT: - • ⏱️ Gen: - • 📝 chars: - (-/s) • 🔢 tokens: - (-/s)</div>
           <div class="text-center small mono" id="tpsBar">Session TPS: --</div>
         </div>
@@ -148,43 +141,55 @@
 </div>
 
 <!-- settings modal -->
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+<div class="modal" id="settingsModal">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title" id="settingsModalLabel">Settings</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <button type="button" class="btn-close" id="modalClose" aria-label="Close"></button></div>
       <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Model Selection</label>
+          <select class="form-select" id="modelSelect" disabled>
+            <option value="">Loading models...</option>
+          </select>
+          <div class="flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-primary" id="refreshModelsBtn">Refresh Models</button>
+            <button class="btn btn-sm btn-primary" id="switchModelBtn" disabled>Switch Model</button>
+          </div>
+          <small class="form-text">Current model will be marked with ★</small>
+          <div id="modelSwitchStatus" class="mt-2"></div>
+        </div>
+        <hr>
         <div class="mb-3">
           <label for="temperature" class="form-label">Temperature</label>
           <input type="number" class="form-control" id="temperature" min="0" max="2" step="0.1" value="0.7">
-          <small class="form-text text-muted">Controls randomness.</small>
+          <small class="form-text">Controls randomness.</small>
         </div>
         <div class="mb-3">
           <label for="nPredict" class="form-label">Max Tokens</label>
           <input type="number" class="form-control" id="nPredict" min="1" step="1" value="1024">
-          <small class="form-text text-muted">Max tokens to generate.</small>
+          <small class="form-text">Max tokens to generate.</small>
         </div>
         <div class="mb-3">
           <label for="topP" class="form-label">Top P</label>
           <input type="number" class="form-control" id="topP" min="0" max="1" step="0.01" value="0.95">
-          <small class="form-text text-muted">Nucleus sampling.</small>
+          <small class="form-text">Nucleus sampling.</small>
         </div>
         <div class="mb-3">
           <label for="topK" class="form-label">Top K</label>
           <input type="number" class="form-control" id="topK" min="1" step="1" value="40">
-          <small class="form-text text-muted">Top-k sampling.</small>
+          <small class="form-text">Top-k sampling.</small>
         </div>
         <div class="mb-3">
           <label for="stopSequences" class="form-label">Stop Sequences</label>
           <input type="text" class="form-control" id="stopSequences" value="USER:, \nUSER:, <|user|>">
-          <small class="form-text text-muted">Comma-separated strings.</small>
+          <small class="form-text">Comma-separated strings.</small>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<script src="lib/bootstrap.bundle.min.js"></script>
 <script>
 /* =========================
    ELEMENTS & CONSTANTS
@@ -228,13 +233,29 @@ const elements={
   ramStatus:document.getElementById('ramStatus'),
   cpuStatus:document.getElementById('cpuStatus'),
   tempStatus:document.getElementById('tempStatus'),
-  tpsBar:document.getElementById('tpsBar')
+  vramStatus:document.getElementById('vramStatus'),
+  tpsBar:document.getElementById('tpsBar'),
+  modelSelect:document.getElementById('modelSelect'),
+  refreshModelsBtn:document.getElementById('refreshModelsBtn'),
+  switchModelBtn:document.getElementById('switchModelBtn'),
+  modelSwitchStatus:document.getElementById('modelSwitchStatus'),
+  documentTrayContainer:document.getElementById('documentTrayContainer'),
+  documentTray:document.getElementById('documentTray'),
+  docCount:document.getElementById('docCount'),
+  clearAllDocsBtn:document.getElementById('clearAllDocsBtn')
 };
 
-let chatHistory=[];
+// Conversation tree structure for branching support
+let conversationTree = {
+  messages: {}, // Map of message ID -> message node
+  root: null,    // ID of first message
+  currentLeaf: null // ID of currently active leaf message
+};
+let chatHistory=[]; // Deprecated - kept for backward compatibility
 let messageCounter=0;
 let currentAbortController=null;
 let stagedFiles=[];
+let loadedDocuments=[]; // Persistent documents that stay loaded across messages
 let sidebarInstance=null;
 let healthCheckInterval=null;
 let powerTelemetryInterval=null;
@@ -243,10 +264,154 @@ let tStart=0,tFirst=0,tEnd=0,charCount=0;
 let sessionTokensDecoded=0;
 let sessionGenerationTimeMs=0;
 const CHARS_PER_TOKEN=4;
-const STATUS_BAR_BASE_CLASS='status-bar text-center text-body-secondary small mt-2';
+const STATUS_BAR_BASE_CLASS='status-bar';
 const PERF_BAR_DEFAULT_TEXT='⚡ TTFT: - • ⏱️ Gen: - • 📝 chars: - (-/s) • 🔢 tokens: - (-/s)';
 const STATUS_PILL_BASE_CLASS='mono status-pill';
 const STATUS_SEVERITIES=new Set(['idle','ok','warn','alert']);
+
+/* =========================
+   CONVERSATION TREE HELPERS
+========================= */
+function addMessageToTree(messageData){
+  const node = {
+    ...messageData,
+    children: [],
+    parentId: conversationTree.currentLeaf,
+    activeChildIndex: 0,
+    timestamp: Date.now()
+  };
+
+  conversationTree.messages[node.id] = node;
+
+  if(conversationTree.currentLeaf){
+    const parent = conversationTree.messages[conversationTree.currentLeaf];
+    if(parent){
+      parent.children.push(node.id);
+      parent.activeChildIndex = parent.children.length - 1; // Select newest child by default
+    }
+  }else{
+    conversationTree.root = node.id;
+  }
+
+  conversationTree.currentLeaf = node.id;
+  return node;
+}
+
+function getActivePath(){
+  // Returns array of message nodes from root to current leaf following active branches
+  if(!conversationTree.root) return [];
+
+  const path = [];
+  let currentId = conversationTree.root;
+
+  while(currentId){
+    const node = conversationTree.messages[currentId];
+    if(!node) break;
+
+    path.push(node);
+
+    if(node.children.length === 0){
+      break;
+    }
+
+    const activeIndex = node.activeChildIndex || 0;
+    currentId = node.children[activeIndex];
+  }
+
+  return path;
+}
+
+function switchBranch(messageId, direction){
+  // direction: 1 for next sibling, -1 for previous sibling
+  const node = conversationTree.messages[messageId];
+  if(!node || !node.parentId) return false;
+
+  const parent = conversationTree.messages[node.parentId];
+  if(!parent) return false;
+
+  const currentIndex = parent.children.indexOf(messageId);
+  if(currentIndex === -1) return false;
+
+  const newIndex = currentIndex + direction;
+  if(newIndex < 0 || newIndex >= parent.children.length) return false;
+
+  parent.activeChildIndex = newIndex;
+
+  // Update currentLeaf to the new branch's leaf
+  let leafId = parent.children[newIndex];
+  while(conversationTree.messages[leafId]?.children.length > 0){
+    const childNode = conversationTree.messages[leafId];
+    const activeIdx = childNode.activeChildIndex || 0;
+    leafId = childNode.children[activeIdx];
+  }
+  conversationTree.currentLeaf = leafId;
+
+  return true;
+}
+
+function deleteMessageAndDescendants(messageId){
+  // Remove a message and all its descendants from the tree
+  const node = conversationTree.messages[messageId];
+  if(!node) return;
+
+  // Recursively delete all children
+  node.children.forEach(childId => deleteMessageAndDescendants(childId));
+
+  // Remove from parent's children array
+  if(node.parentId){
+    const parent = conversationTree.messages[node.parentId];
+    if(parent){
+      parent.children = parent.children.filter(id => id !== messageId);
+      if(parent.activeChildIndex >= parent.children.length){
+        parent.activeChildIndex = Math.max(0, parent.children.length - 1);
+      }
+    }
+  }
+
+  // Delete the node itself
+  delete conversationTree.messages[messageId];
+
+  // If this was the root, clear it
+  if(conversationTree.root === messageId){
+    conversationTree.root = null;
+    conversationTree.currentLeaf = null;
+  }
+}
+
+function getBranchInfo(messageId){
+  // Returns {siblingIndex, totalSiblings} for displaying "Branch X of Y"
+  const node = conversationTree.messages[messageId];
+  if(!node || !node.parentId) return null;
+
+  const parent = conversationTree.messages[node.parentId];
+  if(!parent) return null;
+
+  const siblingIndex = parent.children.indexOf(messageId);
+  return {
+    siblingIndex: siblingIndex + 1,
+    totalSiblings: parent.children.length,
+    canGoBack: siblingIndex > 0,
+    canGoForward: siblingIndex < parent.children.length - 1
+  };
+}
+
+function migrateArrayToTree(array){
+  // Convert old chatHistory array to tree structure
+  conversationTree = {
+    messages: {},
+    root: null,
+    currentLeaf: null
+  };
+
+  array.forEach(msg => {
+    addMessageToTree(msg);
+  });
+}
+
+function treeToArray(){
+  // Convert current active path to array for backward compatibility
+  return getActivePath();
+}
 
 /* =========================
    THEME
@@ -256,7 +421,7 @@ function initializeTheme(){
   setTheme(saved);
 }
 function setTheme(theme){
-  document.documentElement.setAttribute('data-bs-theme',theme);
+  document.documentElement.setAttribute('data-theme',theme);
   elements.themeSwitcher.textContent=theme==='dark'?'☀️':'🌙';
   const light='lib/highlight-github.min.css';
   const dark='lib/highlight-github-dark.min.css';
@@ -264,15 +429,58 @@ function setTheme(theme){
   localStorage.setItem('theme',theme);
 }
 function toggleTheme(){
-  const cur=document.documentElement.getAttribute('data-bs-theme')||'light';
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
   setTheme(cur==='light'?'dark':'light');
+}
+
+/* =========================
+   SIDEBAR & MODAL (Vanilla JS)
+========================= */
+function setupSidebarToggle(){
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebarClose = document.getElementById('sidebarClose');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function openSidebar(){
+    sidebar.classList.add('show');
+    sidebarOverlay.classList.add('show');
+  }
+
+  function closeSidebar(){
+    sidebar.classList.remove('show');
+    sidebarOverlay.classList.remove('show');
+  }
+
+  if(sidebarToggle) sidebarToggle.addEventListener('click', openSidebar);
+  if(sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+  if(sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+}
+
+function setupModal(){
+  const modal = document.getElementById('settingsModal');
+  const modalClose = document.getElementById('modalClose');
+  const settingsBtn = document.getElementById('settingsBtn');
+
+  function openModal(){
+    modal.classList.add('show');
+  }
+
+  function closeModal(){
+    modal.classList.remove('show');
+  }
+
+  if(settingsBtn) settingsBtn.addEventListener('click', openModal);
+  if(modalClose) modalClose.addEventListener('click', closeModal);
+  if(modal) modal.addEventListener('click', (e) => {
+    if(e.target === modal) closeModal();
+  });
 }
 
 /* =========================
    INIT
 ========================= */
 function initialize(){
-  sidebarInstance=new bootstrap.Offcanvas(elements.sidebar);
   setupEventListeners();
   initializeTheme();
   updateEndpointLabels();
@@ -281,6 +489,9 @@ function initialize(){
   updateSendButtonState();
   startHealthChecks();
   startPowerTelemetry();
+  loadAvailableModels();
+  setupSidebarToggle();
+  setupModal();
 }
 function configureMarked(){
   marked.setOptions({
@@ -306,6 +517,10 @@ function setupEventListeners(){
   elements.importChatBtn.addEventListener('click',()=>elements.importFileInput.click());
   elements.exportChatBtn.addEventListener('click',handleExportChat);
   elements.importFileInput.addEventListener('change',handleImportChat);
+  elements.refreshModelsBtn.addEventListener('click',loadAvailableModels);
+  elements.switchModelBtn.addEventListener('click',switchModel);
+  elements.documentTray.addEventListener('click',handleRemoveDocument);
+  elements.clearAllDocsBtn.addEventListener('click',clearAllDocuments);
 
   elements.chatInput.addEventListener('input',()=>{
     updateSendButtonState();
@@ -334,12 +549,12 @@ function showLoading(isLoading,msg=""){
   if(isLoading){
     elements.statusBar.innerHTML=`<div class="spinner-border spinner-border-sm me-2" role="status"></div><span>${escapeHtml(msg)}</span>`;
   }else{
-    if(!elements.statusBar.classList.contains('text-bg-danger')) elements.statusBar.innerHTML='';
+    if(!elements.statusBar.classList.contains('alert-danger')) elements.statusBar.innerHTML='';
   }
 }
 function showStatus(message,type="info"){
   showLoading(false);
-  elements.statusBar.className=`status-bar text-center small mt-2 p-1 rounded-pill text-bg-${type}`;
+  elements.statusBar.className=`status-bar alert alert-${type}`;
   elements.statusBar.textContent=message;
   if(type!=='danger'&&type!=='warning'){
     setTimeout(()=>{
@@ -374,6 +589,7 @@ function resetStatusArea(){
   setStatusPill(elements.ramStatus,'--','', 'idle');
   setStatusPill(elements.cpuStatus,'--','', 'idle');
   setStatusPill(elements.tempStatus,'--','', 'idle');
+  setStatusPill(elements.vramStatus,'--','', 'idle');
 }
 function updatePerfBar(isStreaming=false,finished=false){
   const ttft=tFirst?((tFirst-tStart)/1000).toFixed(2):"-";
@@ -392,29 +608,29 @@ function updatePerfBar(isStreaming=false,finished=false){
 async function handleFileSelection(e){
   const files=e.target.files; if(!files) return;
   showLoading(true,"Processing files...");
-  const add=Array.from(files).filter(f=>!stagedFiles.some(sf=>sf.name===f.name));
+  const add=Array.from(files).filter(f=>!loadedDocuments.some(sf=>sf.name===f.name));
   if(add.length!==files.length) showStatus("Duplicate filenames were ignored.","warning");
   if(add.length===0){ showLoading(false); return; }
-  
+
   let done=0;
-  
+
   for (const file of add) {
-    const fd={file,name:file.name,type:file.type,content:null,error:null};
-    stagedFiles.push(fd);
+    const fd={file,name:file.name,type:file.type,size:file.size,content:null,error:null,id:Date.now()+Math.random()};
+    loadedDocuments.push(fd);
     
     if(file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
         let textContent = '';
-        
+
         for(let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const text = await page.getTextContent();
           const pageText = text.items.map(item => item.str).join(' ');
           textContent += `\n--- Page ${i} ---\n${pageText}\n`;
         }
-        
+
         fd.content = textContent.trim();
         done++;
         if(done===add.length) finishFileProcessing();
@@ -424,7 +640,63 @@ async function handleFileSelection(e){
         if(done===add.length) finishFileProcessing();
       }
     }
-    else if(file.type.startsWith('text/')||/\.(txt|md|py|js|ts|html|css|json|xml|csv|log|cpp|c|hpp|h|java|go|rs)$/i.test(file.name)) {
+    else if(file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+        fd.content = result.value || '';
+        if(result.messages && result.messages.length > 0) {
+          console.warn('DOCX conversion warnings:', result.messages);
+        }
+        done++;
+        if(done===add.length) finishFileProcessing();
+      } catch(err) {
+        fd.error = `DOCX Error: ${err.message}`;
+        done++;
+        if(done===add.length) finishFileProcessing();
+      }
+    }
+    else if(file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
+      try {
+        const text = await file.text();
+        const parsed = Papa.parse(text, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: false
+        });
+
+        if(parsed.errors && parsed.errors.length > 0) {
+          console.warn('CSV parsing warnings:', parsed.errors);
+        }
+
+        if(parsed.data && parsed.data.length > 0) {
+          const headers = Object.keys(parsed.data[0]);
+          let markdown = '| ' + headers.join(' | ') + ' |\n';
+          markdown += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
+
+          const maxRows = 1000;
+          const rowsToShow = parsed.data.slice(0, maxRows);
+          rowsToShow.forEach(row => {
+            markdown += '| ' + headers.map(h => (row[h] || '').toString().replace(/\|/g, '\\|')).join(' | ') + ' |\n';
+          });
+
+          if(parsed.data.length > maxRows) {
+            markdown += `\n*Note: Showing first ${maxRows} of ${parsed.data.length} rows*\n`;
+          }
+
+          fd.content = markdown;
+        } else {
+          fd.content = text;
+        }
+        done++;
+        if(done===add.length) finishFileProcessing();
+      } catch(err) {
+        fd.error = `CSV Error: ${err.message}`;
+        done++;
+        if(done===add.length) finishFileProcessing();
+      }
+    }
+    else if(file.type.startsWith('text/')||/\.(txt|md|py|js|ts|html|css|json|xml|log|cpp|c|hpp|h|java|go|rs)$/i.test(file.name)) {
       const r=new FileReader();
       r.onload=ev=>{ fd.content=ev.target.result; done++; if(done===add.length) finishFileProcessing(); };
       r.onerror=ev=>{ fd.error=`Error reading file: ${ev.target.error?.message||'Unknown'}`; done++; if(done===add.length) finishFileProcessing(); };
@@ -438,18 +710,18 @@ async function handleFileSelection(e){
     }
   }
   
-  renderStagedFiles(); e.target.value=null;
+  renderLoadedDocuments(); e.target.value=null;
 }
-function finishFileProcessing(){ renderStagedFiles(); showLoading(false); updateSendButtonState(); elements.chatInput.focus(); }
+function finishFileProcessing(){ renderLoadedDocuments(); showLoading(false); updateSendButtonState(); elements.chatInput.focus(); }
 function renderStagedFiles(){
   elements.stagedFilesArea.innerHTML='';
   if(stagedFiles.length===0){ elements.stagedFilesArea.style.display='none'; updateSendButtonState(); return; }
   elements.stagedFilesArea.style.display='flex';
   stagedFiles.forEach((fd,idx)=>{
     const item=document.createElement('div');
-    item.className=`badge d-flex align-items-center ${fd.error?'text-bg-danger':'text-bg-secondary'}`;
+    item.className=`badge ${fd.error?'badge-danger':'badge-secondary'}`;
     item.title=fd.name+(fd.error?` (Error: ${fd.error})`:'');
-    item.innerHTML=`<span class="me-2">${fd.name}</span><button type="button" class="btn-close btn-close-white" aria-label="Remove file" data-index="${idx}"></button>`;
+    item.innerHTML=`<span>${fd.name}</span><button type="button" class="btn-close" aria-label="Remove file" data-index="${idx}"></button>`;
     elements.stagedFilesArea.appendChild(item);
   });
   updateSendButtonState();
@@ -462,6 +734,69 @@ function handleRemoveStagedFile(e){
   }
 }
 function clearStagedFiles(){ stagedFiles=[]; renderStagedFiles(); elements.fileInput.value=null; }
+
+/* =========================
+   LOADED DOCUMENTS (persistent)
+========================= */
+function renderLoadedDocuments(){
+  elements.documentTray.innerHTML='';
+  elements.docCount.textContent=loadedDocuments.length;
+
+  if(loadedDocuments.length===0){
+    elements.documentTrayContainer.style.display='none';
+    return;
+  }
+
+  elements.documentTrayContainer.style.display='block';
+
+  loadedDocuments.forEach((doc)=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.width='200px';
+    card.style.fontSize='0.85rem';
+
+    // Determine file icon based on type
+    let icon='📄';
+    if(doc.type==='application/pdf' || doc.name.toLowerCase().endsWith('.pdf')) icon='📕';
+    else if(doc.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document' || doc.name.toLowerCase().endsWith('.docx')) icon='📘';
+    else if(doc.type==='text/csv' || doc.name.toLowerCase().endsWith('.csv')) icon='📊';
+    else if(doc.type.startsWith('text/')) icon='📝';
+    else if(/\.(py|js|ts|java|cpp|c|rs|go)$/i.test(doc.name)) icon='💻';
+    else if(/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(doc.name)) icon='🖼️';
+    else if(/\.(md|markdown)$/i.test(doc.name)) icon='📋';
+
+    const sizeStr=formatBytes(doc.size);
+    const hasError=!!doc.error;
+
+    card.innerHTML=`
+      <div class="card-body ${hasError?'bg-danger-subtle':''}">
+        <div class="flex justify-content-between align-items-start mb-1">
+          <span class="fw-semibold text-truncate" style="max-width:140px;" title="${doc.name}">${icon} ${doc.name}</span>
+          <button type="button" class="btn-close btn-sm" data-doc-id="${doc.id}" title="Remove document"></button>
+        </div>
+        <small class="text-muted">${sizeStr}</small>
+        ${hasError?`<div class="text-danger small mt-1">${doc.error}</div>`:''}
+      </div>
+    `;
+
+    elements.documentTray.appendChild(card);
+  });
+}
+
+function handleRemoveDocument(e){
+  const btn=e.target.closest('[data-doc-id]');
+  if(btn){
+    const docId=parseFloat(btn.dataset.docId);
+    loadedDocuments=loadedDocuments.filter(d=>d.id!==docId);
+    renderLoadedDocuments();
+  }
+}
+
+function clearAllDocuments(){
+  loadedDocuments=[];
+  renderLoadedDocuments();
+  elements.fileInput.value=null;
+}
 
 /* =========================
    CHAT RENDER
@@ -495,16 +830,20 @@ function applySyntaxHighlighting(scope){
 }
 function createMessageElement(message){
   const wrap=document.createElement('div');
-  wrap.className=`chat-message ${message.role}-message d-flex gap-3 mb-3`;
+  wrap.className=`chat-message ${message.role}-message`;
   wrap.dataset.messageId=message.id;
 
   const chipText=message.role==='user'?'User':(message.role==='model'?'ERNIE':'Search');
-  const chipClass=message.role==='user'?'bg-secondary':(message.role==='model'?'bg-primary':'bg-info');
-  const roleChip=`<div class="role-chip text-white ${chipClass} px-3 py-1 rounded-pill fw-semibold" style="flex-shrink:0;align-self:flex-start;">${chipText}</div>`;
-  const bodyDiv=`<div class="message-body p-3 border rounded-3 w-100"></div>`;
+  const chipClass=message.role==='user'?'chip-user':(message.role==='model'?'chip-model':'chip-search');
+  const roleChip=`<div class="role-chip ${chipClass}">${chipText}</div>`;
 
-  wrap.innerHTML=roleChip+bodyDiv;
-  const bodyEl=wrap.querySelector('.message-body');
+  // Create container for body and controls
+  const contentContainer = document.createElement('div');
+  contentContainer.className = 'w-100';
+
+  // Message body
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'message-body';
 
   if(message.role==='model'){
     bodyEl.innerHTML=marked.parse(message.content||'');
@@ -516,6 +855,72 @@ function createMessageElement(message){
   }else if(message.role==='search'){
     bodyEl.appendChild(createSearchResultElement(message));
   }
+
+  contentContainer.appendChild(bodyEl);
+
+  // Add action buttons for user and model messages
+  if(message.role==='user' || message.role==='model'){
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'flex align-items-center gap-2 mt-2';
+
+    // Branch navigation
+    const branchInfo = getBranchInfo(message.id);
+    if(branchInfo && branchInfo.totalSiblings > 1){
+      const branchNav = document.createElement('div');
+      branchNav.className = 'flex align-items-center gap-1';
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'btn btn-sm btn-outline-secondary';
+      prevBtn.innerHTML = '◀';
+      prevBtn.disabled = !branchInfo.canGoBack;
+      prevBtn.title = 'Previous branch';
+      prevBtn.onclick = () => handleBranchSwitch(message.id, -1);
+
+      const branchLabel = document.createElement('span');
+      branchLabel.className = 'small text-muted mx-1';
+      branchLabel.textContent = `${branchInfo.siblingIndex}/${branchInfo.totalSiblings}`;
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'btn btn-sm btn-outline-secondary';
+      nextBtn.innerHTML = '▶';
+      nextBtn.disabled = !branchInfo.canGoForward;
+      nextBtn.title = 'Next branch';
+      nextBtn.onclick = () => handleBranchSwitch(message.id, 1);
+
+      branchNav.appendChild(prevBtn);
+      branchNav.appendChild(branchLabel);
+      branchNav.appendChild(nextBtn);
+      actionsDiv.appendChild(branchNav);
+    }
+
+    // Edit button for user messages
+    if(message.role==='user'){
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-primary';
+      editBtn.innerHTML = '✏️ Edit';
+      editBtn.title = 'Edit this message and regenerate';
+      editBtn.onclick = () => handleEditMessage(message.id);
+      actionsDiv.appendChild(editBtn);
+    }
+
+    // Regenerate button for model messages
+    if(message.role==='model'){
+      const regenBtn = document.createElement('button');
+      regenBtn.className = 'btn btn-sm btn-outline-primary';
+      regenBtn.innerHTML = '🔄 Regenerate';
+      regenBtn.title = 'Generate alternative response';
+      regenBtn.onclick = () => handleRegenerateResponse(message.id);
+      actionsDiv.appendChild(regenBtn);
+    }
+
+    if(actionsDiv.children.length > 0){
+      contentContainer.appendChild(actionsDiv);
+    }
+  }
+
+  wrap.innerHTML = roleChip;
+  wrap.appendChild(contentContainer);
+
   return wrap;
 }
 function createSearchResultElement(searchMsg){
@@ -542,15 +947,99 @@ function createSearchResultElement(searchMsg){
   return wrapper;
 }
 function renderChatHistory(){
-  if(chatHistory.length===0){
-    elements.chatContainer.innerHTML=`<div class="empty-state text-center h-100 d-flex flex-column justify-content-center align-items-center">
-      <div><h2>ERNIE Desktop</h2><p class="lead text-body-secondary">Local, Smart, Secure, & Private</p></div></div>`;
+  const messages = getActivePath();
+  if(messages.length===0){
+    // Check if model server is online
+    const modelOnline = elements.modelServerStatus?.classList.contains('online');
+
+    let emptyMessage = '<h2>ERNIE Desktop</h2><p class="lead text-secondary">Local, Smart, Secure, & Private</p>';
+
+    if(!modelOnline){
+      emptyMessage = `<h2>ERNIE Desktop</h2>
+        <p class="lead text-secondary">No model loaded</p>
+        <p class="text-muted">To get started, open the sidebar and select a model to load.</p>
+        <p class="text-muted small">👈 Click the menu icon or press the hamburger button to access model settings.</p>`;
+    }
+
+    elements.chatContainer.innerHTML=`<div class="empty-state">
+      <div>${emptyMessage}</div></div>`;
   }else{
     elements.chatContainer.innerHTML='';
-    chatHistory.forEach(m=>elements.chatContainer.appendChild(createMessageElement(m)));
+    messages.forEach(m=>elements.chatContainer.appendChild(createMessageElement(m)));
     scrollToBottom();
   }
+
+  // Update chatHistory for backward compatibility
+  chatHistory = messages.map(({children, parentId, activeChildIndex, timestamp, ...msg}) => msg);
 }
+
+/* =========================
+   MESSAGE ACTIONS (Edit, Regenerate, Branch)
+========================= */
+function handleBranchSwitch(messageId, direction){
+  if(switchBranch(messageId, direction)){
+    renderChatHistory();
+  }
+}
+
+function handleEditMessage(messageId){
+  const node = conversationTree.messages[messageId];
+  if(!node || node.role !== 'user') return;
+
+  const newContent = prompt("Edit your message:", node.content);
+  if(newContent === null || newContent.trim() === node.content.trim()) return; // Cancelled or unchanged
+
+  // Delete all children (responses) of this message
+  if(node.children.length > 0){
+    if(!confirm("This will delete all responses after this message. Continue?")){
+      return;
+    }
+    [...node.children].forEach(childId => deleteMessageAndDescendants(childId));
+  }
+
+  // Update the message content
+  node.content = newContent.trim();
+  if(node.llmContent){
+    // Try to preserve context structure if it exists
+    const contextMatch = node.llmContent.match(/^([\s\S]*?)(\n\n|^)([^\n]*)$/);
+    if(contextMatch && contextMatch[1]){
+      node.llmContent = contextMatch[1] + (newContent.trim() || "(no text)");
+    }else{
+      node.llmContent = newContent.trim();
+    }
+  }
+
+  // Set this as the current leaf
+  conversationTree.currentLeaf = messageId;
+
+  // Re-render and send new request
+  renderChatHistory();
+  scrollToBottom();
+
+  // Create and send new assistant response
+  const modelMsg = addMessageToTree({role:'model',content:'',id:`msg-${messageCounter++}`});
+  renderChatHistory();
+
+  streamAssistantResponse(modelMsg,{successMessage:"Response complete."});
+}
+
+async function handleRegenerateResponse(messageId){
+  const node = conversationTree.messages[messageId];
+  if(!node || node.role !== 'model') return;
+
+  // Find the parent (should be a user message)
+  const parentNode = node.parentId ? conversationTree.messages[node.parentId] : null;
+  if(!parentNode) return;
+
+  // Create a new sibling response
+  conversationTree.currentLeaf = node.parentId; // Set parent as current leaf
+
+  const newModelMsg = addMessageToTree({role:'model',content:'',id:`msg-${messageCounter++}`});
+  renderChatHistory();
+
+  await streamAssistantResponse(newModelMsg,{successMessage:"Alternative response generated."});
+}
+
 function updateModelBubbleContent(messageId,newContent,isStreaming=false){
   const body=document.querySelector(`.model-message[data-message-id="${messageId}"] .message-body`);
   if(!body) return;
@@ -612,11 +1101,13 @@ async function fetchPowerTelemetry(){
     updateRamStatusDisplay(data);
     updateCpuStatusDisplay(data);
     updateTemperatureDisplay(data);
+    updateVramStatusDisplay(data);
   }catch(err){
     showPowerError(err.message||'Power telemetry failed');
     showRamError(err.message||'RAM telemetry failed');
     showCpuError(err.message||'CPU telemetry failed');
     showTemperatureError(err.message||'Temperature telemetry failed');
+    showVramError(err.message||'VRAM telemetry failed');
   }
 }
 function updatePowerStatusDisplay(data){
@@ -724,6 +1215,54 @@ function showTemperatureError(reason){
   if(!elements.tempStatus) return;
   setStatusPill(elements.tempStatus,'n/a',reason||'Temperature telemetry unavailable','alert');
 }
+function updateVramStatusDisplay(data){
+  if(!elements.vramStatus) return;
+  const used=data?.vram_used_bytes;
+  const total=data?.vram_total_bytes;
+  if(typeof used!=='number'){
+    setStatusPill(elements.vramStatus,'--','No GPU detected','idle');
+    return;
+  }
+
+  // Build detailed tooltip
+  let tooltip = data?.vram_source ? `Source: ${data.vram_source}` : 'GPU detected';
+  if(data?.gpu_driver) {
+    tooltip += ` | Driver: ${data.gpu_driver}`;
+  }
+  if(data?.vulkan_available) {
+    tooltip += ' | Vulkan: ✓';
+  }
+  tooltip += ` | Updated ${new Date().toLocaleTimeString()}`;
+
+  // Handle Intel/shared memory case (total = 0 or not provided)
+  if(!total || total === 0){
+    setStatusPill(
+      elements.vramStatus,
+      `${formatBytes(used)} used`,
+      tooltip + ' | Shared system RAM',
+      'ok'
+    );
+    return;
+  }
+
+  // Normal discrete GPU case
+  const percent=data?.vram_percent || 0;
+  const percentText=percent.toFixed(1);
+  let severity='ok';
+  if(percent>=90) severity='alert';
+  else if(percent>=70) severity='warn';
+
+  setStatusPill(
+    elements.vramStatus,
+    `${formatBytes(used)} / ${formatBytes(total)} (${percentText}%)`,
+    tooltip,
+    severity
+  );
+}
+function showVramError(reason){
+  if(!elements.vramStatus) return;
+  setStatusPill(elements.vramStatus,'--','No GPU detected','idle');
+}
 function formatBytes(bytes){
   if(!isFinite(bytes)) return '--';
   const units=['B','KB','MB','GB','TB'];
@@ -804,17 +1343,176 @@ async function checkSearchServer(){
 }
 
 /* =========================
+   MODEL MANAGEMENT
+========================= */
+let availableModels = [];
+
+async function loadAvailableModels() {
+  try {
+    elements.modelSelect.disabled = true;
+    elements.modelSelect.innerHTML = '<option value="">Loading models...</option>';
+
+    const resp = await fetch(`${SEARCH_API_URL}/models`);
+    if (!resp.ok) {
+      throw new Error(`Failed to load models: ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    availableModels = data.models || [];
+
+    if (availableModels.length === 0) {
+      elements.modelSelect.innerHTML = '<option value="">No models found</option>';
+      elements.switchModelBtn.disabled = true;
+      return;
+    }
+
+    // Populate dropdown
+    elements.modelSelect.innerHTML = '';
+    availableModels.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.path;
+      option.textContent = `${model.is_current ? '★ ' : ''}${model.name} (${model.size_human})`;
+      if (model.is_current) {
+        option.selected = true;
+      }
+      elements.modelSelect.appendChild(option);
+    });
+
+    elements.modelSelect.disabled = false;
+    elements.switchModelBtn.disabled = false;
+  } catch (error) {
+    console.error('Error loading models:', error);
+    elements.modelSelect.innerHTML = '<option value="">Error loading models</option>';
+    elements.switchModelBtn.disabled = true;
+  }
+}
+
+async function switchModel() {
+  const selectedPath = elements.modelSelect.value;
+  if (!selectedPath) {
+    showModelStatus('Please select a model', 'warning');
+    return;
+  }
+
+  // Check if it's already the current model
+  const selectedModel = availableModels.find(m => m.path === selectedPath);
+  if (selectedModel && selectedModel.is_current) {
+    showModelStatus('This model is already loaded', 'info');
+    return;
+  }
+
+  try {
+    elements.switchModelBtn.disabled = true;
+    elements.sendButton.disabled = true;
+    elements.switchModelBtn.textContent = 'Switching...';
+    showModelStatus('Stopping current model...', 'info');
+
+    const resp = await fetch(`${SEARCH_API_URL}/models/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model_path: selectedPath })
+    });
+
+    const result = await resp.json();
+
+    if (result.success) {
+      showModelStatus('Loading new model, please wait...', 'info');
+
+      // Wait for model server to be ready
+      const ready = await waitForModelServer(60000); // 60 second timeout
+
+      if (ready) {
+        showModelStatus('Model loaded successfully!', 'success');
+        // Reload models to update current marker
+        await loadAvailableModels();
+        // Check server health
+        checkServerHealth();
+        elements.sendButton.disabled = false;
+        updateSendButtonState();
+        // Clear success message after delay
+        setTimeout(() => {
+          elements.modelSwitchStatus.innerHTML = '';
+        }, 5000);
+      } else {
+        showModelStatus('Model server did not start in time. Check logs.', 'danger');
+        elements.sendButton.disabled = false;
+        updateSendButtonState();
+      }
+
+      elements.switchModelBtn.disabled = false;
+      elements.switchModelBtn.textContent = 'Switch Model';
+    } else {
+      showModelStatus(result.message, 'danger');
+      elements.switchModelBtn.disabled = false;
+      elements.switchModelBtn.textContent = 'Switch Model';
+      elements.sendButton.disabled = false;
+      updateSendButtonState();
+    }
+  } catch (error) {
+    console.error('Error switching model:', error);
+    showModelStatus('Failed to switch model: ' + error.message, 'danger');
+    elements.switchModelBtn.disabled = false;
+    elements.switchModelBtn.textContent = 'Switch Model';
+    elements.sendButton.disabled = false;
+    updateSendButtonState();
+  }
+}
+
+async function waitForModelServer(timeoutMs) {
+  const startTime = Date.now();
+  let attempts = 0;
+
+  while (Date.now() - startTime < timeoutMs) {
+    attempts++;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+
+      const resp = await fetch(`${MODEL_SERVER_URL}/health`, {
+        signal: controller.signal
+      }).catch(() => null);
+
+      clearTimeout(timeout);
+
+      if (resp && resp.ok) {
+        console.log(`Model server ready after ${attempts} attempts (${Date.now() - startTime}ms)`);
+        return true;
+      }
+    } catch (e) {
+      // Continue waiting
+    }
+
+    // Update status message every few seconds
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    if (attempts % 3 === 0) {
+      showModelStatus(`Loading model... (${elapsed}s)`, 'info');
+    }
+
+    // Wait 2 seconds before next attempt
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  return false;
+}
+
+function showModelStatus(message, type) {
+  elements.modelSwitchStatus.innerHTML = `<div class="alert alert-${type} py-2 mb-0">${message}</div>`;
+}
+
+/* =========================
    IMPORT/EXPORT
 ========================= */
 function handleExportChat(){
-  if(chatHistory.length===0){ showStatus("No chat to export.","warning"); return; }
-  
+  if(!conversationTree.root){ showStatus("No chat to export.","warning"); return; }
+
   const exportData={
-    version:"1.0",
+    version:"2.0",
     exported:new Date().toISOString(),
+    conversationTree:conversationTree,
+    // Include legacy format for backward compatibility
     chatHistory:chatHistory
   };
-  
+
   const json=JSON.stringify(exportData,null,2);
   const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -829,16 +1527,26 @@ function handleExportChat(){
 function handleImportChat(e){
   const file=e.target.files[0];
   if(!file){ return; }
-  
+
   const reader=new FileReader();
   reader.onload=(ev)=>{
     try{
       const data=JSON.parse(ev.target.result);
-      if(!data.chatHistory || !Array.isArray(data.chatHistory)){
+
+      // Check if it has the new tree format
+      if(data.conversationTree && data.conversationTree.messages){
+        conversationTree = data.conversationTree;
+        messageCounter = Object.keys(conversationTree.messages).length;
+      }
+      // Fall back to legacy array format
+      else if(data.chatHistory && Array.isArray(data.chatHistory)){
+        migrateArrayToTree(data.chatHistory);
+        messageCounter = data.chatHistory.length;
+      }
+      else{
         throw new Error("Invalid chat format");
       }
-      chatHistory=data.chatHistory;
-      messageCounter=chatHistory.length;
+
       renderChatHistory();
       showStatus("Chat imported successfully.","success");
     }catch(err){
@@ -860,7 +1568,7 @@ function populateSessions(){
   elements.sessionsList.innerHTML='';
   sessions.forEach(s=>{
     const item=document.createElement('a'); item.href='#';
-    item.className='list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+    item.className='list-group-item flex justify-content-between align-items-center';
     item.dataset.sessionId=s.id; item.textContent=s.name;
     item.innerHTML+=`<button class="btn-close delete-btn" title="Delete session"></button>`;
     elements.sessionsList.appendChild(item);
@@ -872,13 +1580,36 @@ function handleSaveSession(){
   if(!name?.trim()) return;
   const id=Date.now().toString();
   sessions.push({id,name:name.trim()});
-  localStorage.setItem(SESSION_DATA_PREFIX+id,JSON.stringify(chatHistory));
+  // Save the tree structure
+  localStorage.setItem(SESSION_DATA_PREFIX+id,JSON.stringify(conversationTree));
   saveSessionIndex(sessions); populateSessions();
   showStatus(`Session "${name.trim()}" saved.`,"success");
 }
 function handleLoadSession(id){
   const json=localStorage.getItem(SESSION_DATA_PREFIX+id);
-  chatHistory=JSON.parse(json||"[]"); renderChatHistory(); showStatus("Session loaded.","info");
+  const data=JSON.parse(json||"null");
+
+  if(!data){
+    conversationTree = { messages: {}, root: null, currentLeaf: null };
+    renderChatHistory();
+    showStatus("Session loaded (empty).","info");
+    return;
+  }
+
+  // Check if it's a tree structure or legacy array
+  if(Array.isArray(data)){
+    // Legacy format - convert to tree
+    migrateArrayToTree(data);
+  }else if(data.messages && typeof data.messages === 'object'){
+    // New tree format
+    conversationTree = data;
+  }else{
+    // Unknown format
+    conversationTree = { messages: {}, root: null, currentLeaf: null };
+  }
+
+  renderChatHistory();
+  showStatus("Session loaded.","info");
 }
 function handleDeleteSession(id){
   const sessions=getSessionIndex();
@@ -890,6 +1621,7 @@ function handleDeleteSession(id){
 }
 function startNewSession(){
   if(currentAbortController) currentAbortController.abort();
+  conversationTree = { messages: {}, root: null, currentLeaf: null };
   chatHistory=[]; messageCounter=0; pendingSearchContexts=[];
   sessionTokensDecoded=0; sessionGenerationTimeMs=0; updateTpsBar();
   resetStatusArea();
@@ -994,16 +1726,44 @@ async function streamAssistantResponse(modelMsg,{successMessage="Response comple
    SEND TO LLM
 ========================= */
 function updateSendButtonState(){
-  const canSend=(elements.chatInput.value.trim().length>0||stagedFiles.length>0);
+  const canSend=(elements.chatInput.value.trim().length>0||stagedFiles.length>0||loadedDocuments.length>0);
   elements.sendButton.disabled=!canSend;
 }
 async function handleSend(){
   const text=elements.chatInput.value.trim();
-  if(!text && stagedFiles.length===0){ showStatus("Message cannot be empty.","warning"); return; }
+  if(!text && stagedFiles.length===0 && loadedDocuments.length===0){ showStatus("Message cannot be empty.","warning"); return; }
+
+  // Check if model server is online
+  const modelOnline = elements.modelServerStatus?.classList.contains('online');
+  if(!modelOnline){
+    showStatus("No model loaded. Please select a model from the sidebar first.","warning");
+    return;
+  }
 
   let contextBlock="";
   let userDisplayText=text||"";
 
+  // Include all loaded documents in context automatically
+  if(loadedDocuments.length>0){
+    contextBlock+="Loaded Documents:\n";
+    loadedDocuments.forEach(doc=>{
+      if(doc.error){
+        contextBlock+=`[File: ${doc.name} - ERROR: ${doc.error}]\n`;
+        return;
+      }
+      contextBlock+=`[File: ${doc.name} (${doc.type||'unknown'})]\n`;
+      if(((doc.type||'').startsWith('text/') || doc.type==='application/pdf') && doc.content && doc.content.length<MAX_TEXT_FILE_EMBED_SIZE){
+        contextBlock+=`Content:\n---\n${doc.content}\n---\n`;
+      }else if((doc.type||'').startsWith('text/') || doc.type==='application/pdf'){
+        contextBlock+=`(File content too large to embed)\n`;
+      }else{
+        contextBlock+=`(Binary/image file not embedded)\n`;
+      }
+    });
+    contextBlock+='\n';
+  }
+
+  // Also handle legacy staged files if any
   if(stagedFiles.length>0){
     contextBlock+="Attached Files:\n";
     stagedFiles.forEach(fd=>{
@@ -1017,7 +1777,7 @@ async function handleSend(){
       }
     });
     contextBlock+='\n';
-    
+
     // Clean display: show file count in chat
     const fileNames=stagedFiles.map(f=>f.name).join(', ');
     userDisplayText=`📎 ${stagedFiles.length} file${stagedFiles.length>1?'s':''} attached: ${fileNames}\n\n${text}`;
@@ -1032,14 +1792,14 @@ async function handleSend(){
   }
 
   const userContent=(contextBlock?contextBlock:"") + (text||"(no text)");
-  const userMsg={role:'user',content:userDisplayText,llmContent:userContent,id:`msg-${messageCounter++}`};
-  chatHistory.push(userMsg); renderChatHistory();
+  const userMsg = addMessageToTree({role:'user',content:userDisplayText,llmContent:userContent,id:`msg-${messageCounter++}`});
+  renderChatHistory();
 
   elements.chatInput.value=''; autoResizeTextarea(elements.chatInput);
   clearStagedFiles(); updateSendButtonState();
 
-  const modelMsg={role:'model',content:'',id:`msg-${messageCounter++}`};
-  chatHistory.push(modelMsg); renderChatHistory();
+  const modelMsg = addMessageToTree({role:'model',content:'',id:`msg-${messageCounter++}`});
+  renderChatHistory();
 
   await streamAssistantResponse(modelMsg,{successMessage:"Response complete."});
 }
@@ -1069,7 +1829,8 @@ async function handleWebSearch(){
     }).join('\n\n');
 
     const searchMsg={ role:'search', query, results, context_text:contextText, id:`msg-${messageCounter++}` };
-    chatHistory.push(searchMsg); renderChatHistory();
+    addMessageToTree(searchMsg);
+    renderChatHistory();
     if(contextText) pendingSearchContexts.push(contextText);
 
     elements.chatInput.value='';

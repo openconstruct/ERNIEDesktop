@@ -16,7 +16,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 
 try:
     import psutil
@@ -566,7 +566,7 @@ def get_power_metrics():
         "percent": None,
         "status": "unavailable",
         "detail": None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "ram_used_bytes": None,
         "ram_total_bytes": None,
         "ram_percent": None,
